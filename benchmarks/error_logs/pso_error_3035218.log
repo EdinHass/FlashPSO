@@ -1,0 +1,48 @@
+Traceback (most recent call last):
+  File "/home/eh1994/.conda/envs/cutlass-dsl/bin/pso-bench", line 6, in <module>
+    sys.exit(run_benchmarks())
+             ^^^^^^^^^^^^^^^^
+  File "/home/eh1994/PSO_research/benchmarks/benchmark.py", line 145, in run_benchmarks
+    benchmark_pso.run(print_data=True, show_plots=False, save_path=save_dir)
+  File "/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/triton/testing.py", line 392, in run
+    result_dfs.append(self._run(bench, save_path, show_plots, print_data, **kwargs))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/triton/testing.py", line 339, in _run
+    ret = self.fn(**x_args, **{bench.line_arg: y}, **bench.args, **kwrags)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/eh1994/PSO_research/benchmarks/benchmark.py", line 92, in benchmark_pso
+    ms, min_ms, max_ms = triton.testing.do_bench(fn, warmup=WARMUP_REPS, rep=REPETITIONS,
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/triton/testing.py", line 149, in do_bench
+    fn()
+  File "/home/eh1994/PSO_research/benchmarks/benchmark.py", line 91, in <lambda>
+    fn = lambda: flash.optimize()
+                 ^^^^^^^^^^^^^^^^
+  File "/home/eh1994/PSO_research/flash_pso/flash_pso.py", line 86, in optimize
+    self._PSO_update(iteration=0, eval_only=True)
+  File "/home/eh1994/PSO_research/flash_pso/flash_pso.py", line 112, in _PSO_update
+    pso_kernel[grid](
+  File "/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/triton/runtime/jit.py", line 370, in <lambda>
+    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/triton/runtime/autotuner.py", line 240, in run
+    benchmark()
+  File "/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/triton/runtime/autotuner.py", line 229, in benchmark
+    timings = {config: self._bench(*args, config=config, **kwargs) for config in pruned_configs}
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/triton/runtime/autotuner.py", line 164, in _bench
+    return self.do_bench(kernel_call, quantiles=(0.5, 0.2, 0.8))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/triton/testing.py", line 149, in do_bench
+    fn()
+  File "/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/triton/runtime/autotuner.py", line 150, in kernel_call
+    self.fn.run(
+  File "/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/triton/runtime/jit.py", line 717, in run
+    options, signature, constexprs, attrs = self._pack_args(backend, kwargs, bound_args, specialization,
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/triton/runtime/jit.py", line 673, in _pack_args
+    options = backend.parse_options(kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/triton/backends/nvidia/compiler.py", line 182, in parse_options
+    raise ValueError((f"num_ctas > 1 requires NVIDIA SM90+ (Hopper). "
+ValueError: num_ctas > 1 requires NVIDIA SM90+ (Hopper). Current target is sm_80. This configuration will fail. Please set num_ctas=1 or target an SM90+ GPU.

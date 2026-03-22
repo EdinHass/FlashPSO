@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: FlashPSO
+Version: 0.1.0
+Author: Edin Hasanovic
+Requires-Python: >=3.12
+Requires-Dist: numpy
+Requires-Dist: scipy
+Requires-Dist: pyopencl
+Requires-Dist: matplotlib

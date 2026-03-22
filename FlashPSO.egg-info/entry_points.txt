@@ -1,0 +1,2 @@
+[console_scripts]
+pso-bench = benchmarks.benchmark:run_benchmarks

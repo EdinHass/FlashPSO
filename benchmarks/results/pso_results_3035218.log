@@ -1,0 +1,40 @@
+Starting Benchmark on adroit-h11g2
+============================================================
+Starting Unified Benchmarks
+Python: 3.12.12 | packaged by Anaconda, Inc. | (main, Oct 21 2025, 20:16:04) [GCC 11.2.0]
+Triton: 3.6.0
+============================================================
+[    0.0s] Initializing OpenCL ...
+
+============================================================
+OpenCL Platforms and Devices
+============================================================
+Platform - Name: NVIDIA CUDA
+Platform - Vendor: NVIDIA Corporation
+Platform - Version: OpenCL 3.0 CUDA 13.0.97
+Platform - Profile: FULL_PROFILE
+ --------------------------------------------------------
+ Device - Name: NVIDIA A100-PCIE-40GB MIG 3g.20gb
+ Device - Type: ALL | GPU
+ Device - Max Clock Speed: 1410 Mhz
+ Device - Compute Units: 42
+ Device - Global Memory: 20 GB
+ Device - Constant Memory: 0 GB
+ Device - Local Memory: 48 KB (LOCAL)
+ Device - Max Buffer/Image Size: 5 GB
+ Device - Max Work Group Size: 1024
+ Device - Float Atomics Supported: True
+
+
+[    0.0s] OpenCL ready.
+[    0.0s] Starting PSO benchmarks (80 total configs). Saving to benchmarks/plots ...
+
+[    0.2s]   running  provider=cl_scalar         nFish=64      nPeriod=256  nPath=16384
+[   11.5s]   [cl_scalar] done  median=1346.18ms
+[   11.5s]   running  provider=cl_vec_4          nFish=64      nPeriod=256  nPath=16384
+[   15.8s]   [cl_vec_4] done  median=490.79ms
+[   15.8s]   running  provider=cl_vec_fusion     nFish=64      nPeriod=256  nPath=16384
+[   19.5s]   [cl_vec_fusion] done  median=410.84ms
+[   19.5s]   running  provider=triton_custom     nFish=64      nPeriod=256  nPath=16384
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 64, BLOCK_SIZE_PARTICLES: 1, BLOCK_SIZE_DIM: 8, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 64, BLOCK_SIZE_PARTICLES: 1, BLOCK_SIZE_DIM: 8, num_warps: 8, num_ctas: 2, num_stages: 2, maxnreg: None

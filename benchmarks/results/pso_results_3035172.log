@@ -1,0 +1,92 @@
+Starting Benchmark on adroit-h11g2
+============================================================
+Starting Unified Benchmarks
+Python: 3.12.12 | packaged by Anaconda, Inc. | (main, Oct 21 2025, 20:16:04) [GCC 11.2.0]
+Triton: 3.6.0
+============================================================
+[    0.0s] Initializing OpenCL ...
+
+============================================================
+OpenCL Platforms and Devices
+============================================================
+Platform - Name: NVIDIA CUDA
+Platform - Vendor: NVIDIA Corporation
+Platform - Version: OpenCL 3.0 CUDA 13.0.97
+Platform - Profile: FULL_PROFILE
+ --------------------------------------------------------
+ Device - Name: NVIDIA A100-PCIE-40GB MIG 3g.20gb
+ Device - Type: ALL | GPU
+ Device - Max Clock Speed: 1410 Mhz
+ Device - Compute Units: 42
+ Device - Global Memory: 20 GB
+ Device - Constant Memory: 0 GB
+ Device - Local Memory: 48 KB (LOCAL)
+ Device - Max Buffer/Image Size: 5 GB
+ Device - Max Work Group Size: 1024
+ Device - Float Atomics Supported: True
+
+
+[    0.0s] OpenCL ready.
+[    0.0s] Starting PSO benchmarks (80 total configs). Saving to benchmarks/plots ...
+
+[    0.2s]   running  provider=numpy             nFish=64      nPeriod=256  nPath=16384
+[   10.0s]   [numpy] done  median=387.75ms
+[   10.0s]   running  provider=cl_scalar         nFish=64      nPeriod=256  nPath=16384
+[   21.3s]   [cl_scalar] done  median=1350.52ms
+[   21.3s]   running  provider=cl_vec_4          nFish=64      nPeriod=256  nPath=16384
+[   25.6s]   [cl_vec_4] done  median=486.33ms
+[   25.6s]   running  provider=cl_vec_fusion     nFish=64      nPeriod=256  nPath=16384
+[   29.3s]   [cl_vec_fusion] done  median=411.13ms
+[   29.3s]   running  provider=triton_custom     nFish=64      nPeriod=256  nPath=16384
+[   29.3s]   [triton] constructing FlashPSO ...
+[   29.9s]   [triton] first call (JIT compile + autotune) ...
+[   35.4s]   [triton] done  median=364.28ms
+[   35.4s]   running  provider=numpy             nFish=128     nPeriod=256  nPath=16384
+[   60.3s]   [numpy] done  median=811.82ms
+[   60.3s]   running  provider=cl_scalar         nFish=128     nPeriod=256  nPath=16384
+[   71.6s]   [cl_scalar] done  median=1354.48ms
+[   71.6s]   running  provider=cl_vec_4          nFish=128     nPeriod=256  nPath=16384
+[   78.0s]   [cl_vec_4] done  median=744.08ms
+[   78.0s]   running  provider=cl_vec_fusion     nFish=128     nPeriod=256  nPath=16384
+[   82.2s]   [cl_vec_fusion] done  median=475.36ms
+[   82.2s]   running  provider=triton_custom     nFish=128     nPeriod=256  nPath=16384
+[   82.2s]   [triton] constructing FlashPSO ...
+[   82.2s]   [triton] first call (JIT compile + autotune) ...
+[   87.6s]   [triton] done  median=364.84ms
+[   87.6s]   running  provider=numpy             nFish=256     nPeriod=256  nPath=16384
+[  141.7s]   [numpy] done  median=3146.46ms
+[  141.7s]   running  provider=cl_scalar         nFish=256     nPeriod=256  nPath=16384
+[  156.9s]   [cl_scalar] done  median=1836.66ms
+[  156.9s]   running  provider=cl_vec_4          nFish=256     nPeriod=256  nPath=16384
+[  161.8s]   [cl_vec_4] done  median=557.54ms
+[  161.8s]   running  provider=cl_vec_fusion     nFish=256     nPeriod=256  nPath=16384
+[  165.5s]   [cl_vec_fusion] done  median=406.45ms
+[  165.5s]   running  provider=triton_custom     nFish=256     nPeriod=256  nPath=16384
+[  165.5s]   [triton] constructing FlashPSO ...
+[  165.5s]   [triton] first call (JIT compile + autotune) ...
+[  173.4s]   [triton] done  median=579.90ms
+[  173.4s]   running  provider=numpy             nFish=512     nPeriod=256  nPath=16384
+[  278.5s]   [numpy] done  median=8901.04ms
+[  278.5s]   running  provider=cl_scalar         nFish=512     nPeriod=256  nPath=16384
+[  296.0s]   [cl_scalar] done  median=2116.08ms
+[  296.0s]   running  provider=cl_vec_4          nFish=512     nPeriod=256  nPath=16384
+[  301.5s]   [cl_vec_4] done  median=637.98ms
+[  301.5s]   running  provider=cl_vec_fusion     nFish=512     nPeriod=256  nPath=16384
+[  305.7s]   [cl_vec_fusion] done  median=464.40ms
+[  305.7s]   running  provider=triton_custom     nFish=512     nPeriod=256  nPath=16384
+[  305.7s]   [triton] constructing FlashPSO ...
+[  305.7s]   [triton] first call (JIT compile + autotune) ...
+[  320.2s]   [triton] done  median=1138.38ms
+[  320.2s]   running  provider=numpy             nFish=1024    nPeriod=256  nPath=16384
+[  506.2s]   [numpy] done  median=13323.02ms
+[  506.2s]   running  provider=cl_scalar         nFish=1024    nPeriod=256  nPath=16384
+[  525.1s]   [cl_scalar] done  median=2290.71ms
+[  525.1s]   running  provider=cl_vec_4          nFish=1024    nPeriod=256  nPath=16384
+[  531.2s]   [cl_vec_4] done  median=710.05ms
+[  531.2s]   running  provider=cl_vec_fusion     nFish=1024    nPeriod=256  nPath=16384
+[  535.8s]   [cl_vec_fusion] done  median=527.90ms
+[  535.8s]   running  provider=triton_custom     nFish=1024    nPeriod=256  nPath=16384
+[  535.8s]   [triton] constructing FlashPSO ...
+[  535.8s]   [triton] first call (JIT compile + autotune) ...
+[  560.8s]   [triton] done  median=1967.55ms
+[  560.8s]   running  provider=numpy             nFish=2048    nPeriod=256  nPath=16384

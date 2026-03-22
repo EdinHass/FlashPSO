@@ -1,0 +1,188 @@
+Starting Benchmark on adroit-h11g2
+============================================================
+Starting Unified Benchmarks
+Python: 3.12.12 | packaged by Anaconda, Inc. | (main, Oct 21 2025, 20:16:04) [GCC 11.2.0]
+Triton: 3.6.0
+============================================================
+[    0.0s] Initializing OpenCL ...
+
+============================================================
+OpenCL Platforms and Devices
+============================================================
+Platform - Name: NVIDIA CUDA
+Platform - Vendor: NVIDIA Corporation
+Platform - Version: OpenCL 3.0 CUDA 13.0.97
+Platform - Profile: FULL_PROFILE
+ --------------------------------------------------------
+ Device - Name: NVIDIA A100-PCIE-40GB MIG 3g.20gb
+ Device - Type: ALL | GPU
+ Device - Max Clock Speed: 1410 Mhz
+ Device - Compute Units: 42
+ Device - Global Memory: 20 GB
+ Device - Constant Memory: 0 GB
+ Device - Local Memory: 48 KB (LOCAL)
+ Device - Max Buffer/Image Size: 5 GB
+ Device - Max Work Group Size: 1024
+ Device - Float Atomics Supported: True
+
+
+[    0.0s] OpenCL ready.
+[    0.0s] Starting PSO benchmarks (80 total configs). Saving to benchmarks/plots ...
+
+[    0.2s]   running  provider=cl_scalar         nFish=64      nPeriod=256  nPath=16384
+[   11.7s]   [cl_scalar] done  median=1367.38ms
+[   11.7s]   running  provider=cl_vec_4          nFish=64      nPeriod=256  nPath=16384
+[   16.1s]   [cl_vec_4] done  median=495.48ms
+[   16.1s]   running  provider=cl_vec_fusion     nFish=64      nPeriod=256  nPath=16384
+[   19.8s]   [cl_vec_fusion] done  median=415.81ms
+[   19.8s]   running  provider=triton_custom     nFish=64      nPeriod=256  nPath=16384
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Triton autotuning for function pso_kernel,
+with key as (constexpr[64], constexpr[16384], constexpr[256], 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32'),
+finished after 39.00s,
+best config selected: BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None;
+[   75.1s]   [triton] done  median=1315.13ms
+[   75.1s]   running  provider=cl_scalar         nFish=128     nPeriod=256  nPath=16384
+[   86.6s]   [cl_scalar] done  median=1371.91ms
+[   86.6s]   running  provider=cl_vec_4          nFish=128     nPeriod=256  nPath=16384
+[   93.1s]   [cl_vec_4] done  median=754.07ms
+[   93.1s]   running  provider=cl_vec_fusion     nFish=128     nPeriod=256  nPath=16384
+[   97.4s]   [cl_vec_fusion] done  median=483.17ms
+[   97.4s]   running  provider=triton_custom     nFish=128     nPeriod=256  nPath=16384
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Triton autotuning for function pso_kernel,
+with key as (constexpr[128], constexpr[16384], constexpr[256], 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32'),
+finished after 45.86s,
+best config selected: BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None;
+[  157.5s]   [triton] done  median=1310.85ms
+[  157.5s]   running  provider=cl_scalar         nFish=256     nPeriod=256  nPath=16384
+[  173.0s]   [cl_scalar] done  median=1879.27ms
+[  173.0s]   running  provider=cl_vec_4          nFish=256     nPeriod=256  nPath=16384
+[  178.0s]   [cl_vec_4] done  median=571.15ms
+[  178.0s]   running  provider=cl_vec_fusion     nFish=256     nPeriod=256  nPath=16384
+[  181.7s]   [cl_vec_fusion] done  median=410.61ms
+[  181.7s]   running  provider=triton_custom     nFish=256     nPeriod=256  nPath=16384
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Triton autotuning for function pso_kernel,
+with key as (constexpr[256], constexpr[16384], constexpr[256], 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32'),
+finished after 55.64s,
+best config selected: BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None;
+[  254.1s]   [triton] done  median=1426.12ms
+[  254.1s]   running  provider=cl_scalar         nFish=512     nPeriod=256  nPath=16384
+[  272.1s]   [cl_scalar] done  median=2187.17ms
+[  272.1s]   running  provider=cl_vec_4          nFish=512     nPeriod=256  nPath=16384
+[  277.8s]   [cl_vec_4] done  median=670.83ms
+[  277.8s]   running  provider=cl_vec_fusion     nFish=512     nPeriod=256  nPath=16384
+[  282.2s]   [cl_vec_fusion] done  median=488.17ms
+[  282.2s]   running  provider=triton_custom     nFish=512     nPeriod=256  nPath=16384
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Triton autotuning for function pso_kernel,
+with key as (constexpr[512], constexpr[16384], constexpr[256], 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32'),
+finished after 76.23s,
+best config selected: BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None;
+[  374.4s]   [triton] done  median=1424.47ms
+[  374.4s]   running  provider=cl_scalar         nFish=1024    nPeriod=256  nPath=16384
+[  393.4s]   [cl_scalar] done  median=2313.44ms
+[  393.4s]   running  provider=cl_vec_4          nFish=1024    nPeriod=256  nPath=16384
+[  399.5s]   [cl_vec_4] done  median=718.25ms
+[  399.5s]   running  provider=cl_vec_fusion     nFish=1024    nPeriod=256  nPath=16384
+[  404.2s]   [cl_vec_fusion] done  median=530.72ms
+[  404.2s]   running  provider=triton_custom     nFish=1024    nPeriod=256  nPath=16384
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 4, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 16, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 4, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 16, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None
+Triton autotuning for function pso_kernel,
+with key as (constexpr[1024], constexpr[16384], constexpr[256], 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32'),
+finished after 117.05s,
+best config selected: BLOCK_SIZE_PATHS: 32, BLOCK_SIZE_PARTICLES: 32, BLOCK_SIZE_DIM: 1, num_warps: 8, num_ctas: 1, num_stages: 2, maxnreg: None;
+[  536.9s]   [triton] done  median=1397.58ms
+[  536.9s]   running  provider=cl_scalar         nFish=2048    nPeriod=256  nPath=16384
+[  547.4s]   [cl_scalar] done  median=1246.20ms
+[  547.4s]   running  provider=cl_vec_4          nFish=2048    nPeriod=256  nPath=16384
+[  550.9s]   [cl_vec_4] done  median=391.98ms
+[  550.9s]   running  provider=cl_vec_fusion     nFish=2048    nPeriod=256  nPath=16384
+[  553.7s]   [cl_vec_fusion] done  median=295.53ms
+[  553.7s]   running  provider=triton_custom     nFish=2048    nPeriod=256  nPath=16384

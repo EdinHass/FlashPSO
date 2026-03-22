@@ -1,0 +1,311 @@
+Starting Benchmark on adroit-h11g2
+============================================================
+Starting Unified Benchmarks
+Python: 3.12.12 | packaged by Anaconda, Inc. | (main, Oct 21 2025, 20:16:04) [GCC 11.2.0]
+Triton: 3.6.0
+============================================================
+[    0.0s] Initializing OpenCL ...
+
+============================================================
+OpenCL Platforms and Devices
+============================================================
+Platform - Name: NVIDIA CUDA
+Platform - Vendor: NVIDIA Corporation
+Platform - Version: OpenCL 3.0 CUDA 13.0.97
+Platform - Profile: FULL_PROFILE
+ --------------------------------------------------------
+ Device - Name: NVIDIA A100-PCIE-40GB MIG 3g.20gb
+ Device - Type: ALL | GPU
+ Device - Max Clock Speed: 1410 Mhz
+ Device - Compute Units: 42
+ Device - Global Memory: 20 GB
+ Device - Constant Memory: 0 GB
+ Device - Local Memory: 48 KB (LOCAL)
+ Device - Max Buffer/Image Size: 5 GB
+ Device - Max Work Group Size: 1024
+ Device - Float Atomics Supported: True
+
+
+[    0.0s] OpenCL ready.
+[    0.0s] Starting PSO benchmarks (80 total configs). Saving to benchmarks/plots ...
+
+[    0.2s]   running  provider=numpy             nFish=64      nPeriod=256  nPath=16384
+[    7.3s]   [numpy] done  median=780.48ms
+[    7.3s]   running  provider=cl_scalar         nFish=64      nPeriod=256  nPath=16384
+[   13.2s]   [cl_scalar] done  median=1346.83ms
+[   13.2s]   running  provider=cl_vec_4          nFish=64      nPeriod=256  nPath=16384
+[   15.6s]   [cl_vec_4] done  median=486.27ms
+[   15.6s]   running  provider=cl_vec_fusion     nFish=64      nPeriod=256  nPath=16384
+[   17.6s]   [cl_vec_fusion] done  median=406.53ms
+[   17.6s]   running  provider=triton_custom     nFish=64      nPeriod=256  nPath=16384
+[   17.6s]   [triton] constructing FlashPSO ...
+[   18.2s]   [triton] first call (JIT compile + autotune) ...
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=15.8688
+[FlashPSO] iter   10  gbest=16.492697
+[FlashPSO] iter   20  gbest=16.526493
+[FlashPSO] iter   30  gbest=16.536522
+[FlashPSO] iter   40  gbest=16.537767
+[FlashPSO] iter   50  gbest=16.538134
+[FlashPSO] iter   60  gbest=16.538134
+[FlashPSO] converged at iteration 60
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5381
+[FlashPSO] iter   10  gbest=16.538134
+[FlashPSO] iter   20  gbest=16.538134
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5381
+[FlashPSO] iter   10  gbest=16.538134
+[FlashPSO] iter   20  gbest=16.538134
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5381
+[FlashPSO] iter   10  gbest=16.538134
+[FlashPSO] iter   20  gbest=16.538134
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5381
+[FlashPSO] iter   10  gbest=16.538134
+[FlashPSO] iter   20  gbest=16.538134
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5381
+[FlashPSO] iter   10  gbest=16.538134
+[FlashPSO] iter   20  gbest=16.538134
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5381
+[FlashPSO] iter   10  gbest=16.538134
+[FlashPSO] iter   20  gbest=16.538134
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5381
+[FlashPSO] iter   10  gbest=16.538134
+[FlashPSO] iter   20  gbest=16.538134
+[FlashPSO] converged at iteration 20
+[   37.1s]   [triton] done  median=361.34ms
+[   37.1s]   running  provider=numpy             nFish=128     nPeriod=256  nPath=16384
+[   57.9s]   [numpy] done  median=3243.01ms
+[   57.9s]   running  provider=cl_scalar         nFish=128     nPeriod=256  nPath=16384
+[   63.9s]   [cl_scalar] done  median=1350.10ms
+[   63.9s]   running  provider=cl_vec_4          nFish=128     nPeriod=256  nPath=16384
+[   67.3s]   [cl_vec_4] done  median=739.66ms
+[   67.3s]   running  provider=cl_vec_fusion     nFish=128     nPeriod=256  nPath=16384
+[   69.6s]   [cl_vec_fusion] done  median=476.31ms
+[   69.6s]   running  provider=triton_custom     nFish=128     nPeriod=256  nPath=16384
+[   69.6s]   [triton] constructing FlashPSO ...
+[   69.6s]   [triton] first call (JIT compile + autotune) ...
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=15.8688
+[FlashPSO] iter   10  gbest=16.499344
+[FlashPSO] iter   20  gbest=16.526237
+[FlashPSO] iter   30  gbest=16.530191
+[FlashPSO] iter   40  gbest=16.530849
+[FlashPSO] iter   50  gbest=16.530849
+[FlashPSO] converged at iteration 50
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5308
+[FlashPSO] iter   10  gbest=16.530849
+[FlashPSO] iter   20  gbest=16.530849
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5308
+[FlashPSO] iter   10  gbest=16.530849
+[FlashPSO] iter   20  gbest=16.530849
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5308
+[FlashPSO] iter   10  gbest=16.530849
+[FlashPSO] iter   20  gbest=16.530849
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5308
+[FlashPSO] iter   10  gbest=16.530849
+[FlashPSO] iter   20  gbest=16.530849
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5308
+[FlashPSO] iter   10  gbest=16.530849
+[FlashPSO] iter   20  gbest=16.530849
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5308
+[FlashPSO] iter   10  gbest=16.530849
+[FlashPSO] iter   20  gbest=16.530849
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5308
+[FlashPSO] iter   10  gbest=16.530849
+[FlashPSO] iter   20  gbest=16.530849
+[FlashPSO] converged at iteration 20
+[   88.4s]   [triton] done  median=361.67ms
+[   88.4s]   running  provider=numpy             nFish=256     nPeriod=256  nPath=16384
+[  125.2s]   [numpy] done  median=7868.57ms
+[  125.2s]   running  provider=cl_scalar         nFish=256     nPeriod=256  nPath=16384
+[  133.1s]   [cl_scalar] done  median=1832.84ms
+[  133.1s]   running  provider=cl_vec_4          nFish=256     nPeriod=256  nPath=16384
+[  135.8s]   [cl_vec_4] done  median=560.04ms
+[  135.8s]   running  provider=cl_vec_fusion     nFish=256     nPeriod=256  nPath=16384
+[  137.8s]   [cl_vec_fusion] done  median=405.19ms
+[  137.8s]   running  provider=triton_custom     nFish=256     nPeriod=256  nPath=16384
+[  137.8s]   [triton] constructing FlashPSO ...
+[  137.8s]   [triton] first call (JIT compile + autotune) ...
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=15.8688
+[FlashPSO] iter   10  gbest=16.513924
+[FlashPSO] iter   20  gbest=16.547327
+[FlashPSO] iter   30  gbest=16.556437
+[FlashPSO] iter   40  gbest=16.558544
+[FlashPSO] iter   50  gbest=16.558994
+[FlashPSO] iter   60  gbest=16.558994
+[FlashPSO] converged at iteration 60
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5590
+[FlashPSO] iter   10  gbest=16.558994
+[FlashPSO] iter   20  gbest=16.558994
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5590
+[FlashPSO] iter   10  gbest=16.558994
+[FlashPSO] iter   20  gbest=16.558994
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5590
+[FlashPSO] iter   10  gbest=16.558994
+[FlashPSO] iter   20  gbest=16.558994
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5590
+[FlashPSO] iter   10  gbest=16.558994
+[FlashPSO] iter   20  gbest=16.558994
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5590
+[FlashPSO] iter   10  gbest=16.558994
+[FlashPSO] iter   20  gbest=16.558994
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5590
+[FlashPSO] iter   10  gbest=16.558994
+[FlashPSO] iter   20  gbest=16.558994
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5590
+[FlashPSO] iter   10  gbest=16.558994
+[FlashPSO] iter   20  gbest=16.558994
+[FlashPSO] converged at iteration 20
+[  159.3s]   [triton] done  median=575.33ms
+[  159.3s]   running  provider=numpy             nFish=512     nPeriod=256  nPath=16384
+[  214.9s]   [numpy] done  median=6110.66ms
+[  214.9s]   running  provider=cl_scalar         nFish=512     nPeriod=256  nPath=16384
+[  223.9s]   [cl_scalar] done  median=2102.31ms
+[  223.9s]   running  provider=cl_vec_4          nFish=512     nPeriod=256  nPath=16384
+[  226.9s]   [cl_vec_4] done  median=631.37ms
+[  226.9s]   running  provider=cl_vec_fusion     nFish=512     nPeriod=256  nPath=16384
+[  229.5s]   [cl_vec_fusion] done  median=465.21ms
+[  229.5s]   running  provider=triton_custom     nFish=512     nPeriod=256  nPath=16384
+[  229.5s]   [triton] constructing FlashPSO ...
+[  229.6s]   [triton] first call (JIT compile + autotune) ...
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=15.8688
+[FlashPSO] iter   10  gbest=16.494328
+[FlashPSO] iter   20  gbest=16.541517
+[FlashPSO] iter   30  gbest=16.551208
+[FlashPSO] iter   40  gbest=16.553730
+[FlashPSO] iter   50  gbest=16.553905
+[FlashPSO] iter   60  gbest=16.553905
+[FlashPSO] converged at iteration 60
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5539
+[FlashPSO] iter   10  gbest=16.553905
+[FlashPSO] iter   20  gbest=16.553905
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5539
+[FlashPSO] iter   10  gbest=16.553905
+[FlashPSO] iter   20  gbest=16.553905
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5539
+[FlashPSO] iter   10  gbest=16.553905
+[FlashPSO] iter   20  gbest=16.553905
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5539
+[FlashPSO] iter   10  gbest=16.553905
+[FlashPSO] iter   20  gbest=16.553905
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5539
+[FlashPSO] iter   10  gbest=16.553905
+[FlashPSO] iter   20  gbest=16.553905
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5539
+[FlashPSO] iter   10  gbest=16.553905
+[FlashPSO] iter   20  gbest=16.553905
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5539
+[FlashPSO] iter   10  gbest=16.553905
+[FlashPSO] iter   20  gbest=16.553905
+[FlashPSO] converged at iteration 20
+[  258.3s]   [triton] done  median=1128.07ms
+[  258.3s]   running  provider=numpy             nFish=1024    nPeriod=256  nPath=16384
+[  347.3s]   [numpy] done  median=11796.09ms
+[  347.3s]   running  provider=cl_scalar         nFish=1024    nPeriod=256  nPath=16384
+[  357.0s]   [cl_scalar] done  median=2298.45ms
+[  357.0s]   running  provider=cl_vec_4          nFish=1024    nPeriod=256  nPath=16384
+[  360.2s]   [cl_vec_4] done  median=701.10ms
+[  360.2s]   running  provider=cl_vec_fusion     nFish=1024    nPeriod=256  nPath=16384
+[  362.7s]   [cl_vec_fusion] done  median=519.00ms
+[  362.7s]   running  provider=triton_custom     nFish=1024    nPeriod=256  nPath=16384
+[  362.7s]   [triton] constructing FlashPSO ...
+[  362.8s]   [triton] first call (JIT compile + autotune) ...
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=15.8688
+[FlashPSO] iter   10  gbest=16.501352
+[FlashPSO] iter   20  gbest=16.524582
+[FlashPSO] iter   30  gbest=16.530807
+[FlashPSO] iter   40  gbest=16.531147
+[FlashPSO] iter   50  gbest=16.531147
+[FlashPSO] converged at iteration 50
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5311
+[FlashPSO] iter   10  gbest=16.531166
+[FlashPSO] iter   20  gbest=16.531349
+[FlashPSO] iter   30  gbest=16.531349
+[FlashPSO] converged at iteration 30
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5313
+[FlashPSO] iter   10  gbest=16.531349
+[FlashPSO] iter   20  gbest=16.531349
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5313
+[FlashPSO] iter   10  gbest=16.531349
+[FlashPSO] iter   20  gbest=16.531349
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5313
+[FlashPSO] iter   10  gbest=16.531349
+[FlashPSO] iter   20  gbest=16.531349
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5313
+[FlashPSO] iter   10  gbest=16.531349
+[FlashPSO] iter   20  gbest=16.531349
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5313
+[FlashPSO] iter   10  gbest=16.531349
+[FlashPSO] iter   20  gbest=16.531349
+[FlashPSO] converged at iteration 20
+[FlashPSO] starting optimization: 200 max iters, sync every 10
+[FlashPSO] zeroth eval done, initial gbest=16.5313
+[FlashPSO] iter   10  gbest=16.531349
+[FlashPSO] iter   20  gbest=16.531349
+[FlashPSO] converged at iteration 20
+[  401.1s]   [triton] done  median=1950.21ms
+[  401.1s]   running  provider=numpy             nFish=2048    nPeriod=256  nPath=16384
