@@ -5,18 +5,14 @@ import numpy as np
 import triton
 import triton.testing
 
-# Baseline Imports
 from references.utils import checkOpenCL
 from references.mc import hybridMonteCarlo
-from references.longstaff import LSMC_Numpy, LSMC_OpenCL
 from references.pso import (
-    PSO_Numpy,
     PSO_OpenCL_scalar,
     PSO_OpenCL_vec,
     PSO_OpenCL_vec_fusion,
 )
 
-# FlashPSO imports
 from flash_pso.flash_pso import FlashPSO
 from flash_pso.config import OptionConfig, ComputeConfig, SwarmConfig
 
@@ -30,18 +26,18 @@ def log_progress(msg):
 
 _START_TIME = time.time()
 
+# benchmark parameters
+MAX_ITER = 100
+WARMUP   = 3
+REPS     = 5
 
-def do_bench_opencl(fn, warmup=5, rep=20, quantiles=[0.5, 0.2, 0.8]):
-    """Reduced reps vs original — still statistically sound for slow OpenCL."""
-    for _ in range(warmup):
-        fn()
-    times = []
-    for _ in range(rep):
-        start = time.perf_counter()
-        fn()
-        end = time.perf_counter()
-        times.append((end - start) * 1000)
-    return tuple(np.quantile(times, quantiles))
+def _opencl_iters(result):
+    """len(result[-1]) == number of iterations run for all OpenCL return tuples."""
+    return len(result[-1])
+
+def _opencl_solution(result):
+    """result[0] == C_hat (gbest_cost) for all OpenCL return tuples."""
+    return result[0]
 
 
 def _make_flash_pso(nFish, nPath, nPeriod, S0, r, sigma, T, K):
@@ -57,9 +53,10 @@ def _make_flash_pso(nFish, nPath, nPeriod, S0, r, sigma, T, K):
     )
     comp = ComputeConfig(
         compute_on_the_fly=True,
-        manual_blocks=False, # let autotuning find the best block sizes for each configuration
-        max_iterations=200,
-        sync_iters=10,
+        manual_blocks=False,
+        max_iterations=MAX_ITER,
+        use_fixed_random=True,
+        sync_iters=1,
         seed=42,
     )
     swarm = SwarmConfig(num_particles=nFish)
@@ -71,53 +68,67 @@ def _make_flash_pso(nFish, nPath, nPeriod, S0, r, sigma, T, K):
         x_names=['nFish'],
         x_vals=[2**i for i in range(6, 13)],
         line_arg='provider',
-        line_vals=['cl_scalar', 'cl_vec_4', 'cl_vec_fusion', 'triton_custom'],
-        line_names=['OpenCL Scalar', 'OpenCL Vec (sz=4)', 'OpenCL Vec Fusion', 'Triton (Flash PSO)'],
-        styles=[('blue', '-'), ('red', '-'), ('green', '--'), ('purple', '-.'), ('orange', '-')],
+        line_vals=['cl_vec_fusion', 'triton_custom'],
+        line_names=['OpenCL Vec Fusion', 'Triton (Flash PSO)'],
+        styles=[('gray', '-'), ('blue', '-'), ('green', '--'), ('purple', '-.')],
         ylabel='Execution Time (ms)',
         plot_name='pso-time',
-        args={'nPath': 2**17, 'nPeriod': 2**8, 'metric': 'time'},
+        args={'nPath': 2**17, 'nPeriod': 2**9, 'metric': 'time'},
     ),
 ])
 def benchmark_pso(nFish, nPath, nPeriod, metric, provider):
     S0, r, sigma, T, K, opttype = 100.0, 0.03, 0.3, 1.0, 110.0, 'P'
-    WARMUP_REPS = 3
-    REPETITIONS = 5
 
     log_progress(f"  running  provider={provider:<16}  nFish={nFish:<6}  nPeriod={nPeriod}  nPath={nPath}")
 
     if provider == 'triton_custom':
         flash = _make_flash_pso(nFish, nPath, nPeriod, S0, r, sigma, T, K)
+
+        flash.optimize()
+        converged_at = flash.global_payoff_index * flash.comp.sync_iters
+        solution     = flash.get_option_price()
+
         fn = lambda: flash.optimize()
-        ms, min_ms, max_ms = triton.testing.do_bench(fn, warmup=WARMUP_REPS, rep=REPETITIONS,
-                                                      quantiles=[0.5, 0.2, 0.8])
-        log_progress(f"  [triton] done  median={ms:.2f}ms")
+        ms, min_ms, max_ms = triton.testing.do_bench(
+            fn, warmup=WARMUP - 1, rep=REPS, quantiles=[0.5, 0.2, 0.8]
+        )
+        log_progress(f"  [triton] done  median={ms:.2f}ms  iters={converged_at}  price={solution:.6f}")
 
     else:
         mc = hybridMonteCarlo(S0, r, sigma, T, nPath, nPeriod, K, opttype, nFish)
-        if provider == 'numpy':
-            pso = PSO_Numpy(mc, nFish)
-            fn = lambda: pso.solvePsoAmerOption_np()
-        elif provider == 'cl_scalar':
-            fn = lambda: PSO_OpenCL_scalar(mc, nFish, direction='backward').solvePsoAmerOption_cl()
+
+        if provider == 'cl_scalar':
+            fn = lambda: PSO_OpenCL_scalar(mc, nFish, direction='backward', iterMax=MAX_ITER).solvePsoAmerOption_cl()
         elif provider == 'cl_vec_4':
-            fn = lambda: PSO_OpenCL_vec(mc, nFish, vec_size=4).solvePsoAmerOption_cl()
+            fn = lambda: PSO_OpenCL_vec(mc, nFish, vec_size=4, iterMax=MAX_ITER).solvePsoAmerOption_cl()
         elif provider == 'cl_vec_fusion':
-            fn = lambda: PSO_OpenCL_vec_fusion(mc, nFish).solvePsoAmerOption_cl()
+            fn = lambda: PSO_OpenCL_vec_fusion(mc, nFish, iterMax=MAX_ITER).solvePsoAmerOption_cl()
         else:
             raise ValueError(f"Unknown provider: {provider}")
-        ms, min_ms, max_ms = do_bench_opencl(fn, quantiles=[0.5, 0.2, 0.8], rep=REPETITIONS, warmup=WARMUP_REPS)
+
+        result = None
+        for _ in range(WARMUP):
+            result = fn()
+        converged_at = _opencl_iters(result)
+        solution     = _opencl_solution(result)
+
+        times = []
+        for _ in range(REPS):
+            t0 = time.perf_counter()
+            fn()
+            times.append((time.perf_counter() - t0) * 1000)
+        ms, min_ms, max_ms = tuple(np.quantile(times, [0.5, 0.2, 0.8]))
+
         mc.cleanUp()
-        log_progress(f"  [{provider}] done  median={ms:.2f}ms")
+        log_progress(f"  [{provider}] done  median={ms:.2f}ms  iters={converged_at}  price={solution:.6f}")
 
     if metric == 'time':
         return ms, min_ms, max_ms
     else:
-        max_iter = 100
         bytes_per_float = 4
         memory_operations_per_particle = 7 * nPeriod * bytes_per_float
-        total_bytes_accessed = memory_operations_per_particle * nFish * max_iter
-        gbps = lambda t: total_bytes_accessed / (t * 1e-3) / 1e9
+        total_bytes = memory_operations_per_particle * nFish * MAX_ITER
+        gbps = lambda t: total_bytes / (t * 1e-3) / 1e9
         return gbps(ms), gbps(max_ms), gbps(min_ms)
 
 
@@ -127,8 +138,9 @@ def run_benchmarks():
 
     log("=" * 60)
     log("Starting Unified Benchmarks")
-    log(f"Python: {sys.version}")
-    log(f"Triton: {triton.__version__}")
+    log(f"Python : {sys.version}")
+    log(f"Triton : {triton.__version__}")
+    log(f"MAX_ITER={MAX_ITER}  WARMUP={WARMUP}  REPS={REPS}")
     log("=" * 60)
 
     log_progress("Initializing OpenCL ...")
@@ -138,14 +150,13 @@ def run_benchmarks():
     save_dir = os.path.join('benchmarks', 'plots')
     os.makedirs(save_dir, exist_ok=True)
 
-    total_configs = 2 * 8 * 5
-    log_progress(f"Starting PSO benchmarks ({total_configs} total configs). Saving to {save_dir} ...")
+    log_progress("Starting PSO benchmarks ...")
     log("")
 
     benchmark_pso.run(print_data=True, show_plots=False, save_path=save_dir)
 
     log("")
-    log_progress("All benchmarks finished successfully!")
+    log_progress("All benchmarks finished!")
     log(f"Total wall time: {time.time() - _START_TIME:.1f}s")
 
 

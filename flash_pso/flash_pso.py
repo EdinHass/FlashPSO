@@ -1,4 +1,3 @@
-import math
 import numpy as np
 from typing import Optional
 
@@ -40,21 +39,23 @@ class FlashPSO:
         def _reserve(offset: int, span: int) -> int:
             return offset + max(1, span)
 
-        mc_span   = int(self.opt.num_paths)    * int(self.num_dimensions)
-        init_span = int(self.num_particles)    * int(self.num_dimensions)
+        mc_span   = int(self.opt.num_paths) * int(self.num_dimensions)
+        init_span = int(self.num_particles) * int(self.num_dimensions)
 
         offset = 0
         self.mc_offset_philox  = offset;  offset = _reserve(offset, mc_span)
         self.init_pos_philox   = offset;  offset = _reserve(offset, init_span)
         self.init_vel_philox   = offset;  offset = _reserve(offset, init_span)
-        self.pso_offset_philox = offset
+        self.pso_offset_philox = offset;  offset = _reserve(offset, init_span * 2)
+
+        if self.comp.use_fixed_random:
+            self.r1_offset_philox = offset;  offset = _reserve(offset, init_span)
+            self.r2_offset_philox = offset;  offset = _reserve(offset, init_span)
 
         if not self.comp.compute_on_the_fly:
             if precomputed_St is not None:
                 self.St = precomputed_St.to("cuda")
             else:
-                # Column-major: allocate [NUM_TIME_STEPS, NUM_PATHS] then transpose.
-                # Resulting strides [1, NUM_TIME_STEPS]: paths axis is contiguous.
                 self.St = torch.empty(
                     (self.opt.num_time_steps, self.opt.num_paths), device="cuda", dtype=torch.float32
                 ).t()
@@ -62,8 +63,6 @@ class FlashPSO:
         else:
             self.St = torch.empty((0,), device="cuda")
 
-        # Column-major: allocate [NUM_DIMENSIONS, NUM_PARTICLES] then transpose.
-        # Resulting strides [1, NUM_DIMENSIONS]: particles axis is contiguous.
         self.positions = torch.empty(
             (self.num_dimensions, self.num_particles), device="cuda", dtype=torch.float32
         ).t()
@@ -73,6 +72,17 @@ class FlashPSO:
         self.pbest_pos = torch.empty(
             (self.num_dimensions, self.num_particles), device="cuda", dtype=torch.float32
         ).t()
+
+        if self.comp.use_fixed_random:
+            self.r1 = torch.empty(
+                (self.num_dimensions, self.num_particles), device="cuda", dtype=torch.float32
+            ).t()
+            self.r2 = torch.empty(
+                (self.num_dimensions, self.num_particles), device="cuda", dtype=torch.float32
+            ).t()
+        else:
+            self.r1 = torch.empty((0,), device="cuda")
+            self.r2 = torch.empty((0,), device="cuda")
 
         if initial_positions is not None:
             self.positions.copy_(initial_positions.to("cuda"))
@@ -125,6 +135,8 @@ class FlashPSO:
             gbest_payoff_ptr=self.gbest_payoff,
             gbest_pos_ptr=self.gbest_pos,
             st_ptr=self.St,
+            r1_ptr=self.r1,
+            r2_ptr=self.r2,
             iteration=iteration,
             S0=self.opt.initial_stock_price,
             r=self.opt.risk_free_rate,
@@ -145,6 +157,7 @@ class FlashPSO:
             PSO_OFFSET_PHILOX=tl.constexpr(self.pso_offset_philox),
             MC_OFFSET_PHILOX=tl.constexpr(self.mc_offset_philox),
             EVAL_ONLY=tl.constexpr(eval_only),
+            USE_FIXED_RANDOM=tl.constexpr(self.comp.use_fixed_random),
         )
 
     def _reduce_pbest(self):
@@ -188,11 +201,16 @@ class FlashPSO:
         n_total = self.num_particles * self.num_dimensions
         grid    = (triton.cdiv(n_total, self.comp.init_block_size),)
 
+        r1_off = self.r1_offset_philox if self.comp.use_fixed_random else 0
+        r2_off = self.r2_offset_philox if self.comp.use_fixed_random else 0
+
         init_kernel[grid](
             positions_ptr=self.positions,
             velocities_ptr=self.velocities,
             pbest_costs_ptr=self.pbest_payoff,
             pbest_pos_ptr=self.pbest_pos,
+            r1_ptr=self.r1,
+            r2_ptr=self.r2,
             num_dimensions=self.num_dimensions,
             num_particles=self.num_particles,
             seed=self.comp.seed,
@@ -201,6 +219,9 @@ class FlashPSO:
             BLOCK_SIZE=tl.constexpr(self.comp.init_block_size),
             POS_OFFSET_PHILOX=tl.constexpr(self.init_pos_philox),
             VEL_OFFSET_PHILOX=tl.constexpr(self.init_vel_philox),
+            R1_OFFSET_PHILOX=tl.constexpr(r1_off),
+            R2_OFFSET_PHILOX=tl.constexpr(r2_off),
+            USE_FIXED_RANDOM=tl.constexpr(self.comp.use_fixed_random),
         )
 
     def _precompute_mc_paths(self):
@@ -217,4 +238,4 @@ class FlashPSO:
             BLOCK_SIZE=tl.constexpr(self.comp.mc_block_size),
             NUM_TIME_STEPS=tl.constexpr(self.opt.num_time_steps),
             MC_OFFSET_PHILOX=tl.constexpr(self.mc_offset_philox),
-            )
+        )

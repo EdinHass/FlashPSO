@@ -1,0 +1,113 @@
+Starting Benchmark on adroit-h11g2
+============================================================
+Starting Unified Benchmarks
+Python: 3.12.12 | packaged by Anaconda, Inc. | (main, Oct 21 2025, 20:16:04) [GCC 11.2.0]
+Triton: 3.6.0
+============================================================
+[    0.0s] Initializing OpenCL ...
+
+============================================================
+OpenCL Platforms and Devices
+============================================================
+Platform - Name: NVIDIA CUDA
+Platform - Vendor: NVIDIA Corporation
+Platform - Version: OpenCL 3.0 CUDA 13.0.97
+Platform - Profile: FULL_PROFILE
+ --------------------------------------------------------
+ Device - Name: NVIDIA A100-PCIE-40GB MIG 3g.20gb
+ Device - Type: ALL | GPU
+ Device - Max Clock Speed: 1410 Mhz
+ Device - Compute Units: 42
+ Device - Global Memory: 20 GB
+ Device - Constant Memory: 0 GB
+ Device - Local Memory: 48 KB (LOCAL)
+ Device - Max Buffer/Image Size: 5 GB
+ Device - Max Work Group Size: 1024
+ Device - Float Atomics Supported: True
+
+
+[    0.0s] OpenCL ready.
+[    0.0s] Starting PSO benchmarks (80 total configs). Saving to benchmarks/plots ...
+
+[    0.2s]   running  provider=cl_vec_fusion     nFish=64      nPeriod=256  nPath=16384
+[    3.9s]   [cl_vec_fusion] done  median=411.29ms
+[    3.9s]   running  provider=triton_custom     nFish=64      nPeriod=256  nPath=16384
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 64, BLOCK_SIZE_PARTICLES: 1, BLOCK_SIZE_DIM: 2, num_warps: 8, num_ctas: 1, num_stages: 1, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 128, BLOCK_SIZE_PARTICLES: 1, BLOCK_SIZE_DIM: 2, num_warps: 8, num_ctas: 1, num_stages: 1, maxnreg: None
+Triton autotuning for function pso_kernel,
+with key as (constexpr[64], constexpr[16384], constexpr[256], 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32'),
+finished after 0.91s,
+best config selected: BLOCK_SIZE_PATHS: 128, BLOCK_SIZE_PARTICLES: 1, BLOCK_SIZE_DIM: 2, num_warps: 8, num_ctas: 1, num_stages: 1, maxnreg: None;
+[  835.7s]   [triton] done  median=184.46ms
+[  835.7s]   running  provider=cl_vec_fusion     nFish=128     nPeriod=256  nPath=16384
+[  840.0s]   [cl_vec_fusion] done  median=475.47ms
+[  840.0s]   running  provider=triton_custom     nFish=128     nPeriod=256  nPath=16384
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 64, BLOCK_SIZE_PARTICLES: 1, BLOCK_SIZE_DIM: 2, num_warps: 8, num_ctas: 1, num_stages: 1, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 128, BLOCK_SIZE_PARTICLES: 1, BLOCK_SIZE_DIM: 2, num_warps: 8, num_ctas: 1, num_stages: 1, maxnreg: None
+Triton autotuning for function pso_kernel,
+with key as (constexpr[128], constexpr[16384], constexpr[256], 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32'),
+finished after 0.91s,
+best config selected: BLOCK_SIZE_PATHS: 128, BLOCK_SIZE_PARTICLES: 1, BLOCK_SIZE_DIM: 2, num_warps: 8, num_ctas: 1, num_stages: 1, maxnreg: None;
+[  845.1s]   [triton] done  median=235.10ms
+[  845.1s]   running  provider=cl_vec_fusion     nFish=256     nPeriod=256  nPath=16384
+[  848.7s]   [cl_vec_fusion] done  median=405.30ms
+[  848.7s]   running  provider=triton_custom     nFish=256     nPeriod=256  nPath=16384
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 64, BLOCK_SIZE_PARTICLES: 1, BLOCK_SIZE_DIM: 2, num_warps: 8, num_ctas: 1, num_stages: 1, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 128, BLOCK_SIZE_PARTICLES: 1, BLOCK_SIZE_DIM: 2, num_warps: 8, num_ctas: 1, num_stages: 1, maxnreg: None
+Triton autotuning for function pso_kernel,
+with key as (constexpr[256], constexpr[16384], constexpr[256], 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32'),
+finished after 1.11s,
+best config selected: BLOCK_SIZE_PATHS: 128, BLOCK_SIZE_PARTICLES: 1, BLOCK_SIZE_DIM: 2, num_warps: 8, num_ctas: 1, num_stages: 1, maxnreg: None;
+[  855.5s]   [triton] done  median=414.35ms
+[  855.5s]   running  provider=cl_vec_fusion     nFish=512     nPeriod=256  nPath=16384
+[  859.6s]   [cl_vec_fusion] done  median=462.41ms
+[  859.6s]   running  provider=triton_custom     nFish=512     nPeriod=256  nPath=16384
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 64, BLOCK_SIZE_PARTICLES: 1, BLOCK_SIZE_DIM: 2, num_warps: 8, num_ctas: 1, num_stages: 1, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 128, BLOCK_SIZE_PARTICLES: 1, BLOCK_SIZE_DIM: 2, num_warps: 8, num_ctas: 1, num_stages: 1, maxnreg: None
+Triton autotuning for function pso_kernel,
+with key as (constexpr[512], constexpr[16384], constexpr[256], 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32'),
+finished after 1.27s,
+best config selected: BLOCK_SIZE_PATHS: 128, BLOCK_SIZE_PARTICLES: 1, BLOCK_SIZE_DIM: 2, num_warps: 8, num_ctas: 1, num_stages: 1, maxnreg: None;
+[  869.5s]   [triton] done  median=684.47ms
+[  869.5s]   running  provider=cl_vec_fusion     nFish=1024    nPeriod=256  nPath=16384
+[  874.3s]   [cl_vec_fusion] done  median=535.49ms
+[  874.3s]   running  provider=triton_custom     nFish=1024    nPeriod=256  nPath=16384
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 64, BLOCK_SIZE_PARTICLES: 1, BLOCK_SIZE_DIM: 2, num_warps: 8, num_ctas: 1, num_stages: 1, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 128, BLOCK_SIZE_PARTICLES: 1, BLOCK_SIZE_DIM: 2, num_warps: 8, num_ctas: 1, num_stages: 1, maxnreg: None
+Triton autotuning for function pso_kernel,
+with key as (constexpr[1024], constexpr[16384], constexpr[256], 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32'),
+finished after 1.77s,
+best config selected: BLOCK_SIZE_PATHS: 128, BLOCK_SIZE_PARTICLES: 1, BLOCK_SIZE_DIM: 2, num_warps: 8, num_ctas: 1, num_stages: 1, maxnreg: None;
+[  889.7s]   [triton] done  median=1278.43ms
+[  889.7s]   running  provider=cl_vec_fusion     nFish=2048    nPeriod=256  nPath=16384
+[  892.5s]   [cl_vec_fusion] done  median=292.41ms
+[  892.5s]   running  provider=triton_custom     nFish=2048    nPeriod=256  nPath=16384
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 64, BLOCK_SIZE_PARTICLES: 1, BLOCK_SIZE_DIM: 2, num_warps: 8, num_ctas: 1, num_stages: 1, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 128, BLOCK_SIZE_PARTICLES: 1, BLOCK_SIZE_DIM: 2, num_warps: 8, num_ctas: 1, num_stages: 1, maxnreg: None
+Triton autotuning for function pso_kernel,
+with key as (constexpr[2048], constexpr[16384], constexpr[256], 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32'),
+finished after 2.93s,
+best config selected: BLOCK_SIZE_PATHS: 128, BLOCK_SIZE_PARTICLES: 1, BLOCK_SIZE_DIM: 2, num_warps: 8, num_ctas: 1, num_stages: 1, maxnreg: None;
+[  921.3s]   [triton] done  median=2461.85ms
+[  921.3s]   running  provider=cl_vec_fusion     nFish=4096    nPeriod=256  nPath=16384
+[  927.2s]   [cl_vec_fusion] done  median=694.02ms
+[  927.2s]   running  provider=triton_custom     nFish=4096    nPeriod=256  nPath=16384
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 64, BLOCK_SIZE_PARTICLES: 1, BLOCK_SIZE_DIM: 2, num_warps: 8, num_ctas: 1, num_stages: 1, maxnreg: None
+Autotuning kernel pso_kernel with config BLOCK_SIZE_PATHS: 128, BLOCK_SIZE_PARTICLES: 1, BLOCK_SIZE_DIM: 2, num_warps: 8, num_ctas: 1, num_stages: 1, maxnreg: None
+Triton autotuning for function pso_kernel,
+with key as (constexpr[4096], constexpr[16384], constexpr[256], 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32'),
+finished after 5.20s,
+best config selected: BLOCK_SIZE_PATHS: 128, BLOCK_SIZE_PARTICLES: 1, BLOCK_SIZE_DIM: 2, num_warps: 8, num_ctas: 1, num_stages: 1, maxnreg: None;
+[  981.8s]   [triton] done  median=4836.89ms
+pso-time:
+    nFish  OpenCL Vec Fusion (Execution Time (ms))  Triton (Flash PSO) (Execution Time (ms))
+0    64.0                               411.292579                                184.462372
+1   128.0                               475.472960                                235.099930
+2   256.0                               405.296490                                414.353912
+3   512.0                               462.406510                                684.473267
+4  1024.0                               535.485999                               1278.432251
+5  2048.0                               292.410032                               2461.848389
+6  4096.0                               694.023428                               4836.890137
+
+[  981.9s] All benchmarks finished successfully!
+Total wall time: 981.9s

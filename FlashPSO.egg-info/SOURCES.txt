@@ -1,3 +1,4 @@
+README.md
 pyproject.toml
 FlashPSO.egg-info/PKG-INFO
 FlashPSO.egg-info/SOURCES.txt

@@ -17,8 +17,17 @@ def _require_shape(x, shape, name: str) -> None:
 def _require_power_of_two(x: int, name: str) -> None:
     _require(x > 0 and (x & (x - 1)) == 0, f"{name} must be a power of two (got {x})")
 
+def _require_valid_block_size(x: int, name: str) -> None:
+    # kernel has two branches — BLOCK_SIZE == 1 (scalar path, no TMA) or
+    # BLOCK_SIZE >= 4 (TMA path, must be power of two). Values 2 and 3 are not
+    # supported as they would silently fall into the wrong branch.
+    _require(
+        x == 1 or (x >= 4 and (x & (x - 1)) == 0),
+        f"{name} must be 1 or a power of two >= 4 (got {x})"
+    )
+
 def validate_inputs(pso, manual_blocks=False, initial_positions=None, initial_velocities=None, precomputed_St=None) -> None:
-    # ── COMPUTE & ITERATION CONSTRAINTS ──────────────────────────────────────
+    # compute and iteration constants
     _require_positive(pso.comp.sync_iters, "sync_iters")
     _require_positive(pso.comp.max_iterations, "max_iterations")
     _require(
@@ -26,48 +35,54 @@ def validate_inputs(pso, manual_blocks=False, initial_positions=None, initial_ve
         f"max_iterations ({pso.comp.max_iterations}) must be divisible by sync_iters ({pso.comp.sync_iters})"
     )
 
-    # ── HARDWARE BLOCK DIVISIBILITY ──────────────────────────────────────────
     if manual_blocks:
-        _require( 
-            pso.swarm.num_particles % pso.comp.pso_particles_block_size == 0, 
-            f"num_particles ({pso.swarm.num_particles}) must be divisible by pso_particles_block_size ({pso.comp.pso_particles_block_size})" 
-        ) 
-        _require( 
-            pso.opt.num_paths % pso.comp.pso_paths_block_size == 0, 
-            f"num_paths ({pso.opt.num_paths}) must be divisible by pso_paths_block_size ({pso.comp.pso_paths_block_size})" 
+        _require(
+            pso.swarm.num_particles % pso.comp.pso_particles_block_size == 0,
+            f"num_particles ({pso.swarm.num_particles}) must be divisible by pso_particles_block_size ({pso.comp.pso_particles_block_size})"
+        )
+        _require(
+            pso.opt.num_paths % pso.comp.pso_paths_block_size == 0,
+            f"num_paths ({pso.opt.num_paths}) must be divisible by pso_paths_block_size ({pso.comp.pso_paths_block_size})"
         )
         _require(
             pso.opt.num_time_steps % pso.comp.pso_dim_block_size == 0,
             f"num_time_steps ({pso.opt.num_time_steps}) must be divisible by pso_dim_block_size ({pso.comp.pso_dim_block_size})"
         )
+        _require_valid_block_size(pso.comp.pso_particles_block_size, "pso_particles_block_size")
+        _require_valid_block_size(pso.comp.pso_dim_block_size, "pso_dim_block_size")
 
-    # ── OPTIONAL TENSOR SHAPES ───────────────────────────────────────────────
+
+    # optional tensor shapes (if provided, must match config)
     _require_shape(initial_positions, (pso.swarm.num_particles, pso.opt.num_time_steps), "initial_positions")
     _require_shape(initial_velocities, (pso.swarm.num_particles, pso.opt.num_time_steps), "initial_velocities")
     _require_shape(precomputed_St, (pso.opt.num_paths, pso.opt.num_time_steps), "precomputed_St")
 
-    # ── OPTION PARAMS ────────────────────────────────────────────────────────
+    # option params
     _require(pso.opt.option_type in (0, 1), "option_type must be 0 (Call) or 1 (Put)")
     _require_positive(pso.opt.initial_stock_price, "initial_stock_price")
     _require_positive(pso.opt.strike_price, "strike_price")
     _require_non_negative(pso.opt.risk_free_rate, "risk_free_rate")
     _require_non_negative(pso.opt.volatility, "volatility")
     _require_positive(pso.opt.time_to_maturity, "time_to_maturity")
-    _require_positive(pso.opt.num_paths, "num_paths")
-    _require_positive(pso.opt.num_time_steps, "num_time_steps")
+    _require_power_of_two(pso.opt.num_paths, "num_paths")
+    _require_power_of_two(pso.opt.num_time_steps, "num_time_steps")
 
-    # ── SWARM PARAMS ─────────────────────────────────────────────────────────
+    # swarm params
     _require_positive(pso.swarm.num_particles, "num_particles")
+    _require_power_of_two(pso.swarm.num_particles, "num_particles")
     _require_non_negative(pso.swarm.inertia_weight, "inertia_weight")
     _require_non_negative(pso.swarm.cognitive_weight, "cognitive_weight")
     _require_non_negative(pso.swarm.social_weight, "social_weight")
 
-    # ── COMPUTE PARAMS ───────────────────────────────────────────────────────
-    _require_positive(pso.comp.mc_block_size, "mc_block_size")
-    _require_positive(pso.comp.pso_particles_block_size, "pso_particles_block_size")
-    _require_positive(pso.comp.pso_paths_block_size, "pso_paths_block_size")
-    _require_positive(pso.comp.pso_dim_block_size, "pso_dim_block_size")
-    _require_positive(pso.comp.init_block_size, "init_block_size")
-    _require_positive(pso.comp.reduction_block_size, "reduction_block_size")
-    _require_positive(pso.comp.convergence_threshold, "convergence_threshold")
+    # compute config params
+    _require_power_of_two(pso.comp.mc_block_size, "mc_block_size")
+    _require_power_of_two(pso.comp.init_block_size, "init_block_size")
+    _require_power_of_two(pso.comp.reduction_block_size, "reduction_block_size")
+
+    # pso_paths_block_size always uses TMA so must be power-of-two >= 4
+    _require(
+        pso.comp.pso_paths_block_size >= 4 and (pso.comp.pso_paths_block_size & (pso.comp.pso_paths_block_size - 1)) == 0,
+        f"pso_paths_block_size must be a power of two >= 4 (got {pso.comp.pso_paths_block_size})"
+    )
+
     _require_non_negative(pso.comp.seed, "seed")
