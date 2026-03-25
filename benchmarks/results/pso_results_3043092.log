@@ -1,0 +1,35 @@
+Starting Benchmark on adroit-h11g1
+============================================================
+Python : 3.12.12 | packaged by Anaconda, Inc. | (main, Oct 21 2025, 20:16:04) [GCC 11.2.0]
+Triton : 3.6.0
+MAX_ITER=2  WARMUP=3  REPS=3
+S0=100.0  K=110.0  r=0.03  sigma=0.3  T=1.0  type=P
+============================================================
+[    0.0s] Initializing OpenCL ...
+
+============================================================
+OpenCL Platforms and Devices
+============================================================
+Platform - Name: NVIDIA CUDA
+Platform - Vendor: NVIDIA Corporation
+Platform - Version: OpenCL 3.0 CUDA 13.0.97
+Platform - Profile: FULL_PROFILE
+ --------------------------------------------------------
+ Device - Name: NVIDIA A100 80GB PCIe
+ Device - Type: ALL | GPU
+ Device - Max Clock Speed: 1410 Mhz
+ Device - Compute Units: 108
+ Device - Global Memory: 79 GB
+ Device - Constant Memory: 0 GB
+ Device - Local Memory: 48 KB (LOCAL)
+ Device - Max Buffer/Image Size: 20 GB
+ Device - Max Work Group Size: 1024
+ Device - Float Atomics Supported: True
+
+
+[    0.0s] OpenCL ready.
+Binomial American price: 16.502355057795945 - 42.282989248633385 ms
+[    0.0s]   ground truth (binomial 2000 steps): 16.502355
+[    0.0s] Running compute_fraction sweep ...
+
+[    0.3s]   running  fraction=0.00  nFish=64      nPeriod=128  nPath=4096

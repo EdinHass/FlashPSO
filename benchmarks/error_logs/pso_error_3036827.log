@@ -1,0 +1,12 @@
+/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/pyopencl/__init__.py:570: CompilerWarning: Non-empty compiler output encountered. Set the environment variable PYOPENCL_COMPILER_OUTPUT=1 to see more.
+  lambda: self._prg.build(options_bytes, devices),
+/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/pyopencl/__init__.py:570: CompilerWarning: Non-empty compiler output encountered. Set the environment variable PYOPENCL_COMPILER_OUTPUT=1 to see more.
+  lambda: self._prg.build(options_bytes, devices),
+/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/pyopencl/__init__.py:570: CompilerWarning: Non-empty compiler output encountered. Set the environment variable PYOPENCL_COMPILER_OUTPUT=1 to see more.
+  lambda: self._prg.build(options_bytes, devices),
+/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/pyopencl/__init__.py:570: CompilerWarning: Non-empty compiler output encountered. Set the environment variable PYOPENCL_COMPILER_OUTPUT=1 to see more.
+  lambda: self._prg.build(options_bytes, devices),
+/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/pyopencl/__init__.py:570: CompilerWarning: Non-empty compiler output encountered. Set the environment variable PYOPENCL_COMPILER_OUTPUT=1 to see more.
+  lambda: self._prg.build(options_bytes, devices),
+/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/pyopencl/__init__.py:570: CompilerWarning: Non-empty compiler output encountered. Set the environment variable PYOPENCL_COMPILER_OUTPUT=1 to see more.
+  lambda: self._prg.build(options_bytes, devices),

@@ -1,0 +1,179 @@
+Starting Benchmark on adroit-h11g2
+============================================================
+Starting Unified Benchmarks
+Python : 3.12.12 | packaged by Anaconda, Inc. | (main, Oct 21 2025, 20:16:04) [GCC 11.2.0]
+Triton : 3.6.0
+MAX_ITER=2  WARMUP=3  REPS=5
+============================================================
+[    0.0s] Initializing OpenCL ...
+
+============================================================
+OpenCL Platforms and Devices
+============================================================
+Platform - Name: NVIDIA CUDA
+Platform - Vendor: NVIDIA Corporation
+Platform - Version: OpenCL 3.0 CUDA 13.0.97
+Platform - Profile: FULL_PROFILE
+ --------------------------------------------------------
+ Device - Name: NVIDIA A100-PCIE-40GB MIG 3g.20gb
+ Device - Type: ALL | GPU
+ Device - Max Clock Speed: 1410 Mhz
+ Device - Compute Units: 42
+ Device - Global Memory: 20 GB
+ Device - Constant Memory: 0 GB
+ Device - Local Memory: 48 KB (LOCAL)
+ Device - Max Buffer/Image Size: 5 GB
+ Device - Max Work Group Size: 1024
+ Device - Float Atomics Supported: True
+
+
+[    0.0s] OpenCL ready.
+[    0.0s] Starting PSO benchmarks ...
+
+[    0.2s]   running  provider=cl_vec_fusion     nFish=64      nPeriod=64  nPath=4096
+[    0.4s]   [cl_vec_fusion] done  median=10.10ms  iters=2  price=16.201412
+[    0.4s]   running  provider=triton_compute    nFish=64      nPeriod=64  nPath=4096
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[    1.8s]   [triton_compute] done  median=7.94ms  iters=2  price=16.504494
+[    1.8s]   running  provider=triton_bandwidth  nFish=64      nPeriod=64  nPath=4096
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[   40.8s]   [triton_bandwidth] done  median=0.96ms  iters=2  price=16.505154
+[   40.8s]   running  provider=cl_vec_fusion     nFish=64      nPeriod=64  nPath=8192
+[   41.3s]   [cl_vec_fusion] done  median=17.87ms  iters=2  price=16.281145
+[   41.3s]   running  provider=triton_compute    nFish=64      nPeriod=64  nPath=8192
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[   42.7s]   [triton_compute] done  median=15.67ms  iters=2  price=16.588413
+[   42.7s]   running  provider=triton_bandwidth  nFish=64      nPeriod=64  nPath=8192
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[   43.3s]   [triton_bandwidth] done  median=1.64ms  iters=2  price=16.589510
+[   43.3s]   running  provider=cl_vec_fusion     nFish=64      nPeriod=64  nPath=16384
+[   43.6s]   [cl_vec_fusion] done  median=30.02ms  iters=2  price=16.336670
+[   43.6s]   running  provider=triton_compute    nFish=64      nPeriod=64  nPath=16384
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[   45.1s]   [triton_compute] done  median=31.11ms  iters=2  price=16.385599
+[   45.1s]   running  provider=triton_bandwidth  nFish=64      nPeriod=64  nPath=16384
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[   45.7s]   [triton_bandwidth] done  median=3.07ms  iters=2  price=16.386284
+[   45.7s]   running  provider=cl_vec_fusion     nFish=64      nPeriod=64  nPath=32768
+[   46.6s]   [cl_vec_fusion] done  median=54.94ms  iters=2  price=16.390886
+[   46.6s]   running  provider=triton_compute    nFish=64      nPeriod=64  nPath=32768
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[   48.3s]   [triton_compute] done  median=61.97ms  iters=2  price=16.406385
+[   48.3s]   running  provider=triton_bandwidth  nFish=64      nPeriod=64  nPath=32768
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[   48.9s]   [triton_bandwidth] done  median=5.91ms  iters=2  price=16.406828
+[   48.9s]   running  provider=cl_vec_fusion     nFish=64      nPeriod=64  nPath=65536
+[   50.2s]   [cl_vec_fusion] done  median=108.45ms  iters=2  price=16.407990
+[   50.2s]   running  provider=triton_compute    nFish=64      nPeriod=64  nPath=65536
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[   52.6s]   [triton_compute] done  median=123.69ms  iters=2  price=16.435089
+[   52.6s]   running  provider=triton_bandwidth  nFish=64      nPeriod=64  nPath=65536
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[   53.3s]   [triton_bandwidth] done  median=12.49ms  iters=2  price=16.435328
+[   53.3s]   running  provider=cl_vec_fusion     nFish=64      nPeriod=64  nPath=131072
+[   56.7s]   [cl_vec_fusion] done  median=265.93ms  iters=2  price=16.379520
+[   56.7s]   running  provider=triton_compute    nFish=64      nPeriod=64  nPath=131072
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[   60.0s]   [triton_compute] done  median=247.16ms  iters=2  price=16.385378
+[   60.0s]   running  provider=triton_bandwidth  nFish=64      nPeriod=64  nPath=131072
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[   60.9s]   [triton_bandwidth] done  median=34.36ms  iters=2  price=16.386616
+[   60.9s]   running  provider=cl_vec_fusion     nFish=64      nPeriod=64  nPath=262144
+[   67.9s]   [cl_vec_fusion] done  median=581.12ms  iters=2  price=16.396423
+[   67.9s]   running  provider=triton_compute    nFish=64      nPeriod=64  nPath=262144
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[   73.3s]   [triton_compute] done  median=494.07ms  iters=2  price=16.423435
+[   73.3s]   running  provider=triton_bandwidth  nFish=64      nPeriod=64  nPath=262144
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[   74.5s]   [triton_bandwidth] done  median=66.42ms  iters=2  price=16.424257
+[   74.5s]   running  provider=cl_vec_fusion     nFish=64      nPeriod=64  nPath=524288
+[   88.3s]   [cl_vec_fusion] done  median=1209.51ms  iters=2  price=16.422756
+[   88.3s]   running  provider=triton_compute    nFish=64      nPeriod=64  nPath=524288
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[   98.0s]   [triton_compute] done  median=988.00ms  iters=2  price=16.444107
+[   98.0s]   running  provider=triton_bandwidth  nFish=64      nPeriod=64  nPath=524288
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[FlashPSO] reached max iterations (2)
+[   99.7s]   [triton_bandwidth] done  median=136.69ms  iters=2  price=16.444801
+pso-time:
+      nPath  OpenCL Vec Fusion (Execution Time (ms))  FlashPSO Compute (Execution Time (ms))  FlashPSO Bandwidth (Execution Time (ms))
+0    4096.0                                10.103889                                7.936448                                  0.962080
+1    8192.0                                17.872515                               15.667136                                  1.640256
+2   16384.0                                30.019345                               31.112352                                  3.071360
+3   32768.0                                54.935199                               61.972160                                  5.912608
+4   65536.0                               108.452191                              123.691902                                 12.488992
+5  131072.0                               265.929702                              247.158371                                 34.363777
+6  262144.0                               581.115345                              494.065247                                 66.415359
+7  524288.0                              1209.505718                              987.995422                                136.687073
+
+[   99.8s] All benchmarks finished!
+Total wall time: 99.8s

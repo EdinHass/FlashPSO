@@ -25,4 +25,4 @@ export TRITON_CACHE_DIR="/scratch/network/$USER/.triton_cache"
 export TRITON_PRINT_AUTOTUNING=1
 
 echo "Starting Benchmark on $(hostname)"
-pso-bench
+pso-fraction-bench

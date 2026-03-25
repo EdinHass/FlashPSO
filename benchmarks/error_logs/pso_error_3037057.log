@@ -1,0 +1,60 @@
+Traceback (most recent call last):
+  File "/home/eh1994/.conda/envs/cutlass-dsl/bin/pso-bench", line 6, in <module>
+    sys.exit(run_benchmarks())
+             ^^^^^^^^^^^^^^^^
+  File "/home/eh1994/PSO_research/benchmarks/benchmark.py", line 169, in run_benchmarks
+    benchmark_pso.run(print_data=True, show_plots=False, save_path=save_dir)
+  File "/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/triton/testing.py", line 392, in run
+    result_dfs.append(self._run(bench, save_path, show_plots, print_data, **kwargs))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/triton/testing.py", line 339, in _run
+    ret = self.fn(**x_args, **{bench.line_arg: y}, **bench.args, **kwrags)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/eh1994/PSO_research/benchmarks/benchmark.py", line 88, in benchmark_pso
+    flash.optimize()
+  File "/home/eh1994/PSO_research/flash_pso/flash_pso.py", line 105, in optimize
+    self._PSO_update(iteration=0, eval_only=True)
+  File "/home/eh1994/PSO_research/flash_pso/flash_pso.py", line 130, in _PSO_update
+    pso_kernel[grid](
+  File "/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/triton/runtime/jit.py", line 370, in <lambda>
+    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/triton/runtime/autotuner.py", line 240, in run
+    benchmark()
+  File "/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/triton/runtime/autotuner.py", line 229, in benchmark
+    timings = {config: self._bench(*args, config=config, **kwargs) for config in pruned_configs}
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/triton/runtime/autotuner.py", line 164, in _bench
+    return self.do_bench(kernel_call, quantiles=(0.5, 0.2, 0.8))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/triton/testing.py", line 149, in do_bench
+    fn()
+  File "/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/triton/runtime/autotuner.py", line 150, in kernel_call
+    self.fn.run(
+  File "/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/triton/runtime/jit.py", line 720, in run
+    kernel = self._do_compile(key, signature, device, constexprs, options, attrs, warmup)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/triton/runtime/jit.py", line 849, in _do_compile
+    kernel = self.compile(src, target=target, options=options.__dict__)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/triton/compiler/compiler.py", line 304, in compile
+    module = src.make_ir(target, options, codegen_fns, module_map, context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/eh1994/.conda/envs/cutlass-dsl/lib/python3.12/site-packages/triton/compiler/compiler.py", line 80, in make_ir
+    return ast_to_ttir(self.fn, self, context=context, options=options, codegen_fns=codegen_fns,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+triton.compiler.errors.CompilationError: at 246:47:
+                pos_3d          = pos_tile[None, :, :]
+                path_3d         = path_tile[:, None, :]
+                ex_3d           = (pos_3d > path_3d) if OPTION_TYPE == 1 else (pos_3d < path_3d)
+                ex_int_3d       = ex_3d.to(tl.int32)
+                first_ex_idx_2d = tl.argmax(ex_int_3d, axis=2)
+                any_ex_2d       = tl.max(ex_int_3d, axis=2) == 1
+                one_hot_3d      = (tl.arange(0, BLOCK_SIZE_DIM)[None, None, :] == first_ex_idx_2d[:, :, None]).to(tl.float32)
+                ex_path_2d      = tl.sum(path_3d * one_hot_3d, axis=2)
+                discount_2d     = tl.exp(-RISK_FREE_RATE * TIME_STEP_SIZE * (dim_offset + first_ex_idx_2d + 1))
+                payoff_vals_2d  = tl.maximum(0.0, STRIKE_PRICE - ex_path_2d) * discount_2d if OPTION_TYPE == 1 \
+                                  else tl.maximum(0.0, ex_path_2d - STRIKE_PRICE) * discount_2d
+                just_ex_2d      = any_ex_2d & ~done_2d
+                                               ^
+NameError('done_2d is not defined')

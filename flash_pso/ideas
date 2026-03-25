@@ -14,4 +14,4 @@ Future work:
 7. in the MC_kernels make some stuff static
 8. swizzle the tensors to improve memory access patterns (e.g. use a tiled layout for the particles and their velocities)
 9. get rid of the tensor descriptors and just use raw pointers to load particles
-
+10. cacluate some blocks on the fly and others we fetch!

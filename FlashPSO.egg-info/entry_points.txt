@@ -1,2 +1,3 @@
 [console_scripts]
 pso-bench = benchmarks.benchmark:run_benchmarks
+pso-fraction-bench = benchmarks.benchmark:run_fraction_benchmarks
