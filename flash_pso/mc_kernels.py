@@ -1,56 +1,6 @@
 import triton
 import triton.language as tl
 
-
-@triton.jit
-def mc_path_kernel_row_stores(
-    St_ptr,
-    S0, r, sigma, dt,
-    num_paths, num_time_steps, seed,
-    BLOCK_SIZE:       tl.constexpr,
-    MC_OFFSET_PHILOX: tl.constexpr,
-):
-    pid          = tl.program_id(0)
-    path_offsets = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
-    mask         = path_offsets < num_paths
-    drift        = (r - 0.5 * sigma * sigma) * dt
-    vol          = sigma * tl.sqrt(dt)
-    current_lnS  = tl.full([BLOCK_SIZE], tl.log(S0), dtype=tl.float32)
-    for t in range(num_time_steps):
-        Z           = tl.randn(seed, MC_OFFSET_PHILOX + path_offsets * num_time_steps + t)
-        current_lnS = current_lnS + drift + vol * Z
-        tl.store(St_ptr + t * num_paths + path_offsets, tl.exp(current_lnS), mask=mask)
-
-
-@triton.jit
-def mc_path_kernel_block_stores(
-    St_ptr,
-    S0, r, sigma, dt,
-    num_paths, seed,
-    BLOCK_SIZE:       tl.constexpr,
-    NUM_TIME_STEPS:   tl.constexpr,
-    MC_OFFSET_PHILOX: tl.constexpr,
-):
-    pid           = tl.program_id(0)
-    path_offsets  = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
-    current_block = tl.make_tensor_descriptor(
-        base=St_ptr,
-        shape=[num_paths, NUM_TIME_STEPS],       # pyright: ignore[reportArgumentType]
-        strides=[1, num_paths],                  # pyright: ignore[reportArgumentType]
-        block_shape=[BLOCK_SIZE, NUM_TIME_STEPS],
-    )
-    drift       = (r - 0.5 * sigma * sigma) * dt
-    vol         = sigma * tl.sqrt(dt)
-    current_lnS = tl.full([BLOCK_SIZE], tl.log(S0), dtype=tl.float32)
-    result      = tl.zeros([BLOCK_SIZE, NUM_TIME_STEPS], dtype=tl.float32)
-    for t in range(NUM_TIME_STEPS):
-        Z           = tl.randn(seed, MC_OFFSET_PHILOX + path_offsets * NUM_TIME_STEPS + t)
-        current_lnS = current_lnS + drift + vol * Z
-        col_mask    = tl.arange(0, NUM_TIME_STEPS)[None, :] == t
-        result      = tl.where(col_mask, tl.exp(current_lnS)[:, None], result)
-    tl.store_tensor_descriptor(current_block, [pid * BLOCK_SIZE, 0], result)
-
-
 @triton.jit
 def mc_path_kernel_col_stores_tma(
     St_ptr,
@@ -62,31 +12,53 @@ def mc_path_kernel_col_stores_tma(
     PATH_START:       tl.constexpr,
     USE_ANTITHETIC:   tl.constexpr,
 ):
-    pid          = tl.program_id(0)
-    path_offsets = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)  # local indices in St
-    mask         = path_offsets < num_paths
-    drift        = (r - 0.5 * sigma * sigma) * dt
-    vol          = sigma * tl.sqrt(dt)
+    pid = tl.program_id(0)
 
+    # ── TMA DESCRIPTOR ───────────────────────────────────────────────────────
+    # Hardware Constraint: The contiguous dimension MUST be the last dimension.
+    # St_ptr memory is (paths, time) with strides (1, paths).
+    # We define it here transposed so TMA sees `num_paths` as the last (contiguous) dimension.
+    st_desc = tl.make_tensor_descriptor(
+        base=St_ptr,
+        shape=[NUM_TIME_STEPS, num_paths],           # pyright: ignore[reportArgumentType]
+        strides=[num_paths, 1],                      # pyright: ignore[reportArgumentType]
+        block_shape=[1, BLOCK_SIZE],                 # Last dim >= 16 bytes (BLOCK_SIZE * 4)
+    )
+
+    # ── BASE-2 LOG CONSTANTS (Matches downstream deferred payoff logic) ──────
+    LOG2E    = 1.4426950408889634
+    drift_l2 = (r - 0.5 * sigma * sigma) * dt * LOG2E
+    vol_l2   = sigma * tl.sqrt(dt) * LOG2E
+    lnS      = tl.full([BLOCK_SIZE], tl.log(S0) * LOG2E, dtype=tl.float32)
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # ── PATH GENERATION LOOP ──────────────────────────────────────────────────
+    # ══════════════════════════════════════════════════════════════════════════
+    
     if USE_ANTITHETIC:
-        # Only HALF paths need Philox — second half is derived by negation.
-        # Each CTA writes BLOCK_SIZE paths but only pays for BLOCK_SIZE//2 randn calls.
-        global_first_idx = PATH_START + pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE // 2)
-        lnS_pos          = tl.full([BLOCK_SIZE // 2], tl.log(S0), dtype=tl.float32)
-        lnS_neg          = tl.full([BLOCK_SIZE // 2], tl.log(S0), dtype=tl.float32)
-        mask_first       = (pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE // 2)) < num_paths
-        mask_second      = (pid * BLOCK_SIZE + BLOCK_SIZE // 2 + tl.arange(0, BLOCK_SIZE // 2)) < num_paths
-
-        for t in range(NUM_TIME_STEPS):  # pyright: ignore
-            Z       = tl.randn(seed, MC_OFFSET_PHILOX + global_first_idx * NUM_TIME_STEPS + t)
-            lnS_pos = lnS_pos + drift + vol *  Z
-            lnS_neg = lnS_neg + drift + vol * -Z
-            tl.store(St_ptr + t * num_paths + pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE // 2),        tl.exp(lnS_pos), mask=mask_first)
-            tl.store(St_ptr + t * num_paths + pid * BLOCK_SIZE + BLOCK_SIZE // 2 + tl.arange(0, BLOCK_SIZE // 2), tl.exp(lnS_neg), mask=mask_second)
+        # Only require half the RNG offset IDs
+        first_offs = PATH_START + pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE // 2)
+        
+        for t in range(NUM_TIME_STEPS): # pyright: ignore
+            # Generate half the block
+            Z_half = tl.randn(seed, MC_OFFSET_PHILOX + first_offs * NUM_TIME_STEPS + t)
+            
+            # Interleave to perfectly match the downstream on-the-fly generators:
+            # [Z0, -Z0, Z1, -Z1, Z2, -Z2...]
+            Z = tl.ravel(tl.join(Z_half, -Z_half))
+            
+            lnS = lnS + drift_l2 + vol_l2 * Z
+            
+            # Write 1D slice directly to the 2D global memory matrix
+            # tl.expand_dims(lnS, 0) makes the shape [1, BLOCK_SIZE] to match block_shape
+            tl.store_tensor_descriptor(st_desc, [t, pid * BLOCK_SIZE], tl.expand_dims(lnS, 0))
+            
     else:
-        current_lnS = tl.full([BLOCK_SIZE], tl.log(S0), dtype=tl.float32)
-        for t in range(NUM_TIME_STEPS):  # pyright: ignore
-            rng_offs    = MC_OFFSET_PHILOX + (PATH_START + path_offsets) * NUM_TIME_STEPS + t
-            Z           = tl.randn(seed, rng_offs)
-            current_lnS = current_lnS + drift + vol * Z
-            tl.store(St_ptr + t * num_paths + path_offsets, tl.exp(current_lnS), mask=mask)
+        path_offsets = PATH_START + pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
+        
+        for t in range(NUM_TIME_STEPS): # pyright: ignore
+            Z   = tl.randn(seed, MC_OFFSET_PHILOX + path_offsets * NUM_TIME_STEPS + t)
+            lnS = lnS + drift_l2 + vol_l2 * Z
+            
+            # Write 1D slice directly to the 2D global memory matrix
+            tl.store_tensor_descriptor(st_desc, [t, pid * BLOCK_SIZE], tl.expand_dims(lnS, 0))

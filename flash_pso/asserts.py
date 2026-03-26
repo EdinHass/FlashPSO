@@ -34,15 +34,17 @@ def validate_inputs(pso, manual_blocks=False, initial_positions=None, initial_ve
         pso.comp.max_iterations % pso.comp.sync_iters == 0,
         f"max_iterations ({pso.comp.max_iterations}) must be divisible by sync_iters ({pso.comp.sync_iters})"
     )
+    
+    # NEW: Validate hybrid compute fraction
+    _require(
+        0.0 <= pso.comp.compute_fraction <= 1.0,
+        f"compute_fraction must be between 0.0 and 1.0 (got {pso.comp.compute_fraction})"
+    )
 
     if manual_blocks:
         _require(
             pso.swarm.num_particles % pso.comp.pso_particles_block_size == 0,
             f"num_particles ({pso.swarm.num_particles}) must be divisible by pso_particles_block_size ({pso.comp.pso_particles_block_size})"
-        )
-        _require(
-            pso.opt.num_paths % pso.comp.pso_paths_block_size == 0,
-            f"num_paths ({pso.opt.num_paths}) must be divisible by pso_paths_block_size ({pso.comp.pso_paths_block_size})"
         )
         _require(
             pso.opt.num_time_steps % pso.comp.pso_dim_block_size == 0,
@@ -51,11 +53,30 @@ def validate_inputs(pso, manual_blocks=False, initial_positions=None, initial_ve
         _require_valid_block_size(pso.comp.pso_particles_block_size, "pso_particles_block_size")
         _require_valid_block_size(pso.comp.pso_dim_block_size, "pso_dim_block_size")
 
+    # GLOBAL REQUIREMENT: pso_paths_block_size is NOT autotuned, so num_paths must always be divisible by it
+    _require(
+        pso.opt.num_paths % pso.comp.pso_paths_block_size == 0,
+        f"num_paths ({pso.opt.num_paths}) must be divisible by pso_paths_block_size ({pso.comp.pso_paths_block_size})"
+    )
 
     # optional tensor shapes (if provided, must match config)
     _require_shape(initial_positions, (pso.swarm.num_particles, pso.opt.num_time_steps), "initial_positions")
     _require_shape(initial_velocities, (pso.swarm.num_particles, pso.opt.num_time_steps), "initial_velocities")
-    _require_shape(precomputed_St, (pso.opt.num_paths, pso.opt.num_time_steps), "precomputed_St")
+
+    # NEW: precomputed_St shape logic (dependent on compute_fraction) and TMA stride requirements
+    if precomputed_St is not None:
+        total_path_blocks = pso.opt.num_paths // pso.comp.pso_paths_block_size
+        num_compute_path_blocks = round(pso.comp.compute_fraction * total_path_blocks)
+        num_bw_paths = (total_path_blocks - num_compute_path_blocks) * pso.comp.pso_paths_block_size
+        
+        _require_shape(precomputed_St, (num_bw_paths, pso.opt.num_time_steps), "precomputed_St")
+        
+        # TMA Hardware Constraint Validation
+        _require(
+            precomputed_St.stride(0) == 1,
+            "precomputed_St MUST be Column-Major (stride(0) == 1) to satisfy TMA descriptor constraints. "
+            "Ensure it is generated as log-space lnS and transposed e.g., torch.empty((time, paths)).t()"
+        )
 
     # option params
     _require(pso.opt.option_type in (0, 1), "option_type must be 0 (Call) or 1 (Put)")
