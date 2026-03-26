@@ -23,15 +23,15 @@ class OptionConfig:
 
 @dataclass
 class ComputeConfig:
-    # FIX: compute_fraction controls what fraction of path blocks are generated
+    # compute_fraction controls what fraction of path blocks are generated
     # on-the-fly vs loaded from precomputed St. 1.0 = fully compute-on-the-fly
     # (no St allocation), 0.0 = fully bandwidth (all paths precomputed),
     # 0.5 = half and half. Allows tuning arithmetic intensity to the roofline.
     compute_fraction: float = 1.0
 
     manual_blocks: bool = False
+    pso_paths_block_size: int = 256 
     pso_particles_block_size: int = 256
-    pso_paths_block_size: int = 128 
     pso_dim_block_size: int = 64
     mc_block_size: int = 1024
     init_block_size: int = 256
@@ -41,10 +41,10 @@ class ComputeConfig:
     max_iterations: int = 1000
     sync_iters: int = 10
     use_fixed_random: bool = False
+    use_antithetic: bool = False
 
     @property
     def compute_on_the_fly(self) -> bool:
-        """True if any path blocks are generated on-the-fly."""
         return self.compute_fraction > 0.0
 
 
@@ -58,28 +58,39 @@ class SwarmConfig:
 
 def get_autotune_configs():
     configs = []
-    path_blocks     = [128]
-    particle_blocks = [1]
-    dim_blocks      = [1]
-    warps           = [4]
-    stages          = [1]
-    num_ctas        = [1]
 
-    for p, pt, d, w, s, cta in itertools.product(path_blocks, particle_blocks, dim_blocks, warps, stages, num_ctas):
-        if p * pt > 8192:
+    # BLOCK_SIZE_PATHS is NOT autotuned — fixed by pso_paths_block_size in ComputeConfig
+    particle_blocks = [1]
+    dim_blocks      = [1, 4]
+    warps           = [4, 8]
+    stages          = [1]
+    loop_stages_l   = [1]
+    loop_unroll_l   = [1, 4]
+    warp_spec_l     = [False]
+    flatten_l       = [False, True]
+
+    for pt, d, w, s, ls, lu, ws, fl in itertools.product(
+        particle_blocks, dim_blocks, warps, stages, loop_stages_l, loop_unroll_l,
+        warp_spec_l, flatten_l,
+    ):
+        # warp_specialize requires >=4 warps
+        if ws and w < 4:
             continue
-        if p * d > 8192:
-            continue
+
         configs.append(
             triton.Config(
-                {"BLOCK_SIZE_PATHS": p, "BLOCK_SIZE_PARTICLES": pt, "BLOCK_SIZE_DIM": d},
+                {
+                    "BLOCK_SIZE_PARTICLES": pt,
+                    "BLOCK_SIZE_DIM":       d,
+                    "LOOP_STAGES":          ls,
+                    "LOOP_UNROLL":          lu,
+                    "WARP_SPECIALIZE":      ws,
+                    "LOOP_FLATTEN":         fl,
+                },
                 num_warps=w,
                 num_stages=s,
-                num_ctas=cta,
+                num_ctas=1,
             )
         )
 
     return configs
-
-
-MIN_BLOCK_SIZE_PATHS = min(c.kwargs["BLOCK_SIZE_PATHS"] for c in get_autotune_configs())

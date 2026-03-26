@@ -25,8 +25,8 @@ def log_progress(msg):
 _START_TIME = time.time()
 
 MAX_ITER = 2 
-WARMUP   = 0
-REPS     = 3
+WARMUP   = 3
+REPS     = 10 
 
 S0, r, sigma, T, K, opttype = 100.0, 0.03, 0.3, 1.0, 110.0, 'P'
 
@@ -57,6 +57,7 @@ def _make_flash_pso(nFish, nPath, nPeriod, compute_fraction=1.0):
         manual_blocks=False,
         max_iterations=2,
         use_fixed_random=True,
+        use_antithetic=True,
         sync_iters=1,
         seed=42,
     )
@@ -69,8 +70,8 @@ def _make_flash_pso(nFish, nPath, nPeriod, compute_fraction=1.0):
         x_names=['nPath'],
         x_vals=[2**i for i in range(12, 20)],
         line_arg='provider',
-        line_vals=['triton_compute', 'triton_bandwidth'],
-        line_names=['FlashPSO Compute', 'FlashPSO Bandwidth'],
+        line_vals=['cl_vec_fusion', 'triton_compute', 'triton_bandwidth'],
+        line_names=['OpenCL Vec Fusion', 'FlashPSO Compute', 'FlashPSO Bandwidth'],
         styles=[('black', ':'), ('brown', ':'), ('gray', '-'),
                 ('blue', '-'), ('green', '--')],
         ylabel='Execution Time (ms)',
@@ -168,7 +169,7 @@ FRACTION_STYLES = [('green', '--'), ('cyan', '-'), ('orange', '-'), ('purple', '
         styles=FRACTION_STYLES,
         ylabel='Execution Time (ms)',
         plot_name='compute-fraction-sweep',
-        args={'nFish': 64, 'nPeriod': 2**7, 'metric': 'time'},
+        args={'nFish': 32, 'nPeriod': 2**7, 'metric': 'time'},
     ),
 ])
 def benchmark_fraction(nPath, nFish, nPeriod, metric, fraction_idx):
