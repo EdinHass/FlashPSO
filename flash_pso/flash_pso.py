@@ -12,7 +12,6 @@ from flash_pso.mc_kernels import mc_path_kernel_col_stores_tma
 from flash_pso.pso_utils import reduce_pbest_local, reduce_pbest_global
 from flash_pso.asserts import validate_inputs
 
-# ── Custom Triton Allocator ───────────────────────────────────────────────────
 def triton_alloc(size: int, align: int, stream: int) -> int:
     return torch.cuda.caching_allocator_alloc(size, device=torch.cuda.current_device())
 
@@ -47,7 +46,6 @@ class FlashPSO:
 
         validate_inputs(self, self.comp.manual_blocks, initial_positions, initial_velocities, precomputed_St)
 
-        # ── Philox RNG Offset Reservations ───────────────────────────────────
         def _reserve(offset: int, span: int) -> int:
             return offset + max(1, span)
 
@@ -64,15 +62,12 @@ class FlashPSO:
             self.r1_offset_philox = offset; offset = _reserve(offset, init_span)
             self.r2_offset_philox = offset; offset = _reserve(offset, init_span)
 
-        # ── Hybrid Compute/Bandwidth Balancing ───────────────────────────────
         total_path_blocks             = self.opt.num_paths // self.comp.pso_paths_block_size
         self._num_compute_path_blocks = round(self.comp.compute_fraction * total_path_blocks)
         self._num_bw_path_blocks      = total_path_blocks - self._num_compute_path_blocks
         self._num_bw_paths            = self._num_bw_path_blocks * self.comp.pso_paths_block_size
         self._num_compute_paths       = self._num_compute_path_blocks * self.comp.pso_paths_block_size
 
-        # ── Memory Allocations ───────────────────────────────────────────────
-        # Paths (Stored as Log-Space lnS if generated internally)
         if self._num_bw_paths > 0:
             if precomputed_St is not None:
                 self.St = precomputed_St.to("cuda")
@@ -82,10 +77,10 @@ class FlashPSO:
         else:
             self.St = torch.empty((0,), device="cuda")
 
-        # Swarm State
-        self.positions  = torch.empty((self.num_dimensions, self.num_particles), device="cuda", dtype=torch.float32).t()
-        self.velocities = torch.empty((self.num_dimensions, self.num_particles), device="cuda", dtype=torch.float32).t()
-        self.pbest_pos  = torch.empty((self.num_dimensions, self.num_particles), device="cuda", dtype=torch.float32).t()
+        self.positions    = torch.empty((self.num_dimensions, self.num_particles), device="cuda", dtype=torch.float32).t()
+        self.ln_positions = torch.empty((self.num_dimensions, self.num_particles), device="cuda", dtype=torch.float32).t()
+        self.velocities   = torch.empty((self.num_dimensions, self.num_particles), device="cuda", dtype=torch.float32).t()
+        self.pbest_pos    = torch.empty((self.num_dimensions, self.num_particles), device="cuda", dtype=torch.float32).t()
 
         if self.comp.use_fixed_random:
             self.r1 = torch.empty((self.num_dimensions, self.num_particles), device="cuda", dtype=torch.float32).t()
@@ -94,11 +89,9 @@ class FlashPSO:
             self.r1 = torch.empty((0,), device="cuda")
             self.r2 = torch.empty((0,), device="cuda")
 
-        # Custom Initializations
         if initial_positions  is not None: self.positions.copy_(initial_positions.to("cuda"))
         if initial_velocities is not None: self.velocities.copy_(initial_velocities.to("cuda"))
 
-        # Reductions & Payoffs
         self.pbest_payoff = torch.empty((self.num_particles,), device="cuda", dtype=torch.float32)
         self.gbest_payoff = torch.full((1,), float("-inf"), device="cuda", dtype=torch.float32)
         self.gbest_pos    = torch.empty((self.num_dimensions,), device="cuda", dtype=torch.float32)
@@ -111,16 +104,10 @@ class FlashPSO:
             device="cuda", dtype=torch.float32,
         )
 
-        # Precompute Absolute Discounts
-        discounts = [math.exp(-self.opt.risk_free_rate * self.opt.time_step_size * (t + 1)) for t in range(self.num_dimensions)]
-        self._discounts = torch.tensor(discounts, device="cuda", dtype=torch.float32).unsqueeze(0)
-
-        # CPU Tracking
         buffer_size = self.comp.max_iterations // self.comp.sync_iters
         self.global_payoffs_cpu  = np.empty((buffer_size,), dtype=np.float32)
         self.global_payoff_index = 0
 
-    # ── Core Optimization Loop ───────────────────────────────────────────────
     def optimize(self):
         self.global_payoff_index = 0
         self._PSO_update(iteration=0, eval_only=True)
@@ -129,15 +116,13 @@ class FlashPSO:
         for iteration in range(0, self.comp.max_iterations, self.comp.sync_iters):
             for i in range(self.comp.sync_iters):
                 self._PSO_update(iteration=iteration + i, eval_only=False)
-                self._reduce_pbest()
+            self._reduce_pbest()
 
             self.global_payoffs_cpu[self.global_payoff_index] = self.gbest_payoff.item()
             self.global_payoff_index += 1
 
             if self._is_converged():
                 break
-        else:
-            print(f"[FlashPSO] reached max iterations ({self.comp.max_iterations})", flush=True)
 
     def get_option_price(self):
         return self.global_payoffs_cpu[self.global_payoff_index - 1]
@@ -145,15 +130,13 @@ class FlashPSO:
     def get_gbest_position(self):
         return self.gbest_pos.cpu().numpy()
 
-    # ── Kernel Launchers ─────────────────────────────────────────────────────
     def _PSO_update(self, iteration: int, eval_only: bool = False):
         if not eval_only:
-            # 1. Light-weight 1D kernel for velocity/position math only
             BLOCK_SIZE_PSO = 256
             grid_pso = lambda meta: (triton.cdiv(self.num_dimensions * self.num_particles, BLOCK_SIZE_PSO),)
 
             pso_update_kernel[grid_pso](
-                self.positions, self.velocities, self.pbest_pos, self.gbest_pos,
+                self.positions, self.ln_positions, self.velocities, self.pbest_pos, self.gbest_pos,
                 self.r1, self.r2, iteration,
                 self.swarm.inertia_weight, self.swarm.cognitive_weight, self.swarm.social_weight,
                 self.num_dimensions, self.num_particles,
@@ -161,17 +144,15 @@ class FlashPSO:
                 self.comp.use_fixed_random, BLOCK_SIZE_PSO
             )
 
-        # 2. Dense, unrolled 2D/3D evaluation kernel
         grid_mc = lambda meta: (
             triton.cdiv(self.num_particles, meta["BLOCK_SIZE_PARTICLES"]),
             self.opt.num_paths // self.comp.pso_paths_block_size,
         )
 
         mc_payoff_kernel[grid_mc](
-            positions_ptr=self.positions,
+            ln_positions_ptr=self.ln_positions,
             st_ptr=self.St,
             partial_payoffs_ptr=self._partial_payoffs,
-            discounts_ptr=self._discounts,
             S0=self.opt.initial_stock_price,
             r=self.opt.risk_free_rate,
             sigma=self.opt.volatility,
@@ -229,6 +210,7 @@ class FlashPSO:
 
         init_kernel[grid](
             positions_ptr=self.positions,
+            ln_positions_ptr=self.ln_positions,
             velocities_ptr=self.velocities,
             pbest_costs_ptr=self.pbest_payoff,
             pbest_pos_ptr=self.pbest_pos,
@@ -266,6 +248,9 @@ class FlashPSO:
         )
     
     def _is_converged(self):
+        if self.comp.convergence_threshold < 0:
+            return False
+            
         if self.global_payoff_index < 2:
             return False
         return abs(

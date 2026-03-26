@@ -7,3 +7,6 @@ Requires-Dist: numpy
 Requires-Dist: scipy
 Requires-Dist: pyopencl
 Requires-Dist: matplotlib
+Requires-Dist: pandas
+Requires-Dist: torch>=2.0.0
+Requires-Dist: triton>=3.6.0

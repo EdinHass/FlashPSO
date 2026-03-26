@@ -1,6 +1,0 @@
-Traceback (most recent call last):
-  File "/home/eh1994/.conda/envs/cutlass-dsl/bin/pso-bench", line 3, in <module>
-    from benchmarks.benchmark import run_benchmarks
-  File "/home/eh1994/PSO_research/benchmarks/benchmark.py", line 16, in <module>
-    from references.bs import binomialAmericanOption
-ModuleNotFoundError: No module named 'references.bs'

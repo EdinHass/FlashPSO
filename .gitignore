@@ -1,0 +1,11 @@
+benchmarks/plots/*
+benchmarks/results/*
+benchmarks/error_logs/*
+benchmarks/__pycache__/*
+benchmarks/__pycache__
+references/__pycache__/*
+references/__pycache__
+pyrightconfig.json
+batch.sh
+flash_pso/ideas
+*.egg-info

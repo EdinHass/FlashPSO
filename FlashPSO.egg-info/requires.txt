@@ -2,3 +2,6 @@ numpy
 scipy
 pyopencl
 matplotlib
+pandas
+torch>=2.0.0
+triton>=3.6.0
