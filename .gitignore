@@ -6,6 +6,8 @@ benchmarks/__pycache__
 references/__pycache__/*
 references/__pycache__
 pyrightconfig.json
-batch.sh
+*.sh
 flash_pso/ideas
 *.egg-info
+*.pyc
+*.pyo

@@ -8,8 +8,8 @@ def _velocity_update(pos, vel, pbest, gbest, r1, r2,
     return W * vel + C1 * r1 * (pbest - pos) + C2 * r2 * (gbest - pos)
 
 @triton.jit
-def init_kernel(positions_ptr, ln_positions_ptr, velocities_ptr, pbest_costs_ptr, pbest_pos_ptr, r1_ptr, r2_ptr, num_dimensions, num_particles, seed, GENERATES_POSITIONS: tl.constexpr, GENERATES_VELOCITIES: tl.constexpr, BLOCK_SIZE: tl.constexpr, POS_OFFSET_PHILOX: tl.constexpr, VEL_OFFSET_PHILOX: tl.constexpr, R1_OFFSET_PHILOX: tl.constexpr, R2_OFFSET_PHILOX: tl.constexpr, USE_FIXED_RANDOM: tl.constexpr):
-    pid = tl.program_id(0); offs = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
+def init_kernel(positions_ptr, ln_positions_ptr, velocities_ptr, pbest_costs_ptr, pbest_pos_ptr, r1_ptr, r2_ptr, num_dimensions, num_particles, seed, GENERATES_POSITIONS: tl.constexpr, GENERATES_VELOCITIES: tl.constexpr, BLOCK_SIZE: tl.constexpr, POS_OFFSET_PHILOX, VEL_OFFSET_PHILOX, R1_OFFSET_PHILOX, R2_OFFSET_PHILOX, USE_FIXED_RANDOM: tl.constexpr):
+    pid = tl.program_id(0); offs = (pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)).to(tl.int64)
     p_idx = offs // num_dimensions; d_idx = offs % num_dimensions; cm_offs = d_idx * num_particles + p_idx
     
     if GENERATES_POSITIONS:
@@ -31,15 +31,15 @@ def init_kernel(positions_ptr, ln_positions_ptr, velocities_ptr, pbest_costs_ptr
     tl.store(pbest_costs_ptr + p_idx, float("-inf"), mask=(d_idx == 0))
 
 @triton.jit
-def pso_update_kernel(positions_ptr, ln_positions_ptr, velocities_ptr, pbest_pos_ptr, gbest_pos_ptr, r1_ptr, r2_ptr, iteration, INERTIA_WEIGHT: tl.constexpr, COGNITIVE_WEIGHT: tl.constexpr, SOCIAL_WEIGHT: tl.constexpr, NUM_DIMENSIONS: tl.constexpr, NUM_PARTICLES: tl.constexpr, PSO_OFFSET_PHILOX: tl.constexpr, SEED: tl.constexpr, USE_FIXED_RANDOM: tl.constexpr, BLOCK_SIZE: tl.constexpr):
-    pid = tl.program_id(0); offs = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE); mask = offs < (NUM_DIMENSIONS * NUM_PARTICLES)
+def pso_update_kernel(positions_ptr, ln_positions_ptr, velocities_ptr, pbest_pos_ptr, gbest_pos_ptr, r1_ptr, r2_ptr, iteration, INERTIA_WEIGHT: tl.constexpr, COGNITIVE_WEIGHT: tl.constexpr, SOCIAL_WEIGHT: tl.constexpr, NUM_DIMENSIONS: tl.constexpr, NUM_PARTICLES: tl.constexpr, PSO_OFFSET_PHILOX, SEED: tl.constexpr, USE_FIXED_RANDOM: tl.constexpr, BLOCK_SIZE: tl.constexpr):
+    pid = tl.program_id(0); offs = (pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)).to(tl.int64); mask = offs < (NUM_DIMENSIONS * NUM_PARTICLES)
     p_idx = offs % NUM_PARTICLES; d_idx = offs // NUM_PARTICLES
     pos = tl.load(positions_ptr + offs, mask=mask); vel = tl.load(velocities_ptr + offs, mask=mask); pbest = tl.load(pbest_pos_ptr + offs, mask=mask); gbest = tl.load(gbest_pos_ptr + d_idx, mask=mask)
     
     if USE_FIXED_RANDOM:
         r1 = tl.load(r1_ptr + offs, mask=mask); r2 = tl.load(r2_ptr + offs, mask=mask)
     else:
-        roffs = p_idx * NUM_DIMENSIONS + d_idx
+        roffs = (p_idx * NUM_DIMENSIONS + d_idx).to(tl.int64)
         r1 = tl.rand(SEED, PSO_OFFSET_PHILOX + 2 * iteration * NUM_PARTICLES * NUM_DIMENSIONS + roffs)
         r2 = tl.rand(SEED, PSO_OFFSET_PHILOX + (2 * iteration + 1) * NUM_PARTICLES * NUM_DIMENSIONS + roffs)
         
@@ -57,7 +57,7 @@ def mc_payoff_kernel(
     S0, r, sigma, dt,
     SEED: tl.constexpr, NUM_DIMENSIONS: tl.constexpr, NUM_PARTICLES: tl.constexpr, NUM_PATHS: tl.constexpr,
     NUM_COMPUTE_PATH_BLOCKS: tl.constexpr, BLOCK_SIZE_PARTICLES: tl.constexpr, BLOCK_SIZE_PATHS: tl.constexpr, BLOCK_SIZE_DIM: tl.constexpr,
-    OPTION_TYPE: tl.constexpr, STRIKE_PRICE: tl.constexpr, MC_OFFSET_PHILOX: tl.constexpr, USE_ANTITHETIC: tl.constexpr,
+    OPTION_TYPE: tl.constexpr, STRIKE_PRICE: tl.constexpr, MC_OFFSET_PHILOX, USE_ANTITHETIC: tl.constexpr,
     WARP_SPECIALIZE: tl.constexpr, LOOP_FLATTEN: tl.constexpr, LOOP_STAGES: tl.constexpr, LOOP_UNROLL: tl.constexpr,
 ):
     tl.assume(NUM_DIMENSIONS % BLOCK_SIZE_DIM == 0)
@@ -70,14 +70,36 @@ def mc_payoff_kernel(
 
     # Base 1D Pointers
     p_idx = tl.max_contiguous(tl.multiple_of(pid * BLOCK_SIZE_PARTICLES + tl.arange(0, BLOCK_SIZE_PARTICLES), BLOCK_SIZE_PARTICLES), BLOCK_SIZE_PARTICLES)
-    path_offs = tl.max_contiguous(tl.multiple_of(path_block_idx * BLOCK_SIZE_PATHS + tl.arange(0, BLOCK_SIZE_PATHS), BLOCK_SIZE_PATHS), BLOCK_SIZE_PATHS)
+    path_offs = tl.max_contiguous(tl.multiple_of(path_block_idx * BLOCK_SIZE_PATHS + tl.arange(0, BLOCK_SIZE_PATHS), BLOCK_SIZE_PATHS), BLOCK_SIZE_PATHS).to(tl.int64)
 
-    # Pre-calculate Bandwidth Offsets
+    # Pre-calculate Bandwidth Offsets (fallback for PAR=1 / non-TMA code paths)
     NUM_BW_PATHS_SAFE = tl.constexpr(NUM_BW_PATHS if NUM_BW_PATHS > 0 else BLOCK_SIZE_PATHS)
     bw_block_idx = path_block_idx - NUM_COMPUTE_PATH_BLOCKS
-    bw_path_offs = bw_block_idx * BLOCK_SIZE_PATHS + tl.arange(0, BLOCK_SIZE_PATHS)
-    # Mask ensures we don't invalid-load if the compiler traces the else-branch during a compute block
+    bw_path_offs = (bw_block_idx * BLOCK_SIZE_PATHS + tl.arange(0, BLOCK_SIZE_PATHS)).to(tl.int64)
     bw_mask = (bw_path_offs >= 0) & (bw_path_offs < NUM_BW_PATHS_SAFE)
+
+    # ── TMA DESCRIPTORS ──────────────────────────────────────────────────────
+    # Bypass L1TEX scoreboard stalls via dedicated TMA hardware path.
+    #
+    # ln_positions: col-major [NUM_DIMENSIONS, NUM_PARTICLES], contiguous in particles.
+    # TMA minimum is 16 bytes → need BLOCK_SIZE_PARTICLES >= 4 for float32.
+    if BLOCK_SIZE_PARTICLES >= 4:
+        ln_pos_desc = tl.make_tensor_descriptor(
+            base=ln_positions_ptr,
+            shape=[NUM_DIMENSIONS, NUM_PARTICLES],       # pyright: ignore[reportArgumentType]
+            strides=[NUM_PARTICLES, 1],                  # pyright: ignore[reportArgumentType]
+            block_shape=[1, BLOCK_SIZE_PARTICLES],
+        )
+
+    # st (precomputed paths): col-major [NUM_DIMENSIONS, NUM_BW_PATHS_SAFE].
+    # Always created — NUM_BW_PATHS_SAFE is always > 0.  When NUM_BW_PATHS == 0
+    # all blocks are compute blocks so the descriptor is never actually read.
+    st_desc = tl.make_tensor_descriptor(
+        base=st_ptr,
+        shape=[NUM_DIMENSIONS, NUM_BW_PATHS_SAFE],       # pyright: ignore[reportArgumentType]
+        strides=[NUM_BW_PATHS_SAFE, 1],                  # pyright: ignore[reportArgumentType]
+        block_shape=[1, BLOCK_SIZE_PATHS],
+    )
 
     # ── DEFERRED PAYOFF TRACKERS ─────────────────────────────────────────────
     payoff_accum = tl.zeros([BLOCK_SIZE_PARTICLES], dtype=tl.float32)
@@ -99,24 +121,21 @@ def mc_payoff_kernel(
     # Base offsets for Philox execution
     if USE_ANTITHETIC:
         base_path_idx = path_block_idx * BLOCK_SIZE_PATHS
-        first_offs    = base_path_idx + tl.arange(0, BLOCK_SIZE_PATHS // 2)
+        first_offs    = (base_path_idx + tl.arange(0, BLOCK_SIZE_PATHS // 2)).to(tl.int64)
         base_rng_offsets = MC_OFFSET_PHILOX + first_offs * NUM_DIMENSIONS
     else:
         base_rng_offsets = MC_OFFSET_PHILOX + path_offs * NUM_DIMENSIONS
 
     # ══════════════════════════════════════════════════════════════════════════
-    # ── FUSED SEQUENTIAL EVALUATION LOOP (Direct 1D Loads) ──
+    # ── FUSED SEQUENTIAL EVALUATION LOOP ─────────────────────────────────────
     # ══════════════════════════════════════════════════════════════════════════
     for dim_block_idx in tl.range(NUM_DIMENSIONS // BLOCK_SIZE_DIM, num_stages=LOOP_STAGES, loop_unroll_factor=LOOP_UNROLL, warp_specialize=WARP_SPECIALIZE, flatten=LOOP_FLATTEN):
         dim_offset = dim_block_idx * BLOCK_SIZE_DIM
         
-        # OUTER BRANCHING: Perfect SSA Scope Isolation
+        # ── COMPUTE PATH ─────────────────────────────────────────────────
         if is_compute:
             for d in tl.static_range(BLOCK_SIZE_DIM):
                 step_idx = dim_offset + d
-                
-                # DIRECT 1D LOAD (No slicing needed)
-                ln_pos_slice = tl.load(ln_positions_ptr + step_idx * NUM_PARTICLES + p_idx)
                 
                 # 1. GENERATE
                 if USE_ANTITHETIC:
@@ -130,6 +149,7 @@ def mc_payoff_kernel(
                 
                 # 2. BOUNDARY CHECK
                 if BLOCK_SIZE_PARTICLES == 1:
+                    ln_pos_slice = tl.load(ln_positions_ptr + step_idx * NUM_PARTICLES + p_idx)
                     any_ex = (step_lnS < ln_pos_slice) if OPTION_TYPE == 1 else (step_lnS > ln_pos_slice)
                     just_ex = any_ex & ~done_acc
                     
@@ -137,8 +157,15 @@ def mc_payoff_kernel(
                     ex_step_acc = tl.where(just_ex, step_idx, ex_step_acc)
                     done_acc    = done_acc | any_ex
                 else:
+                    # TMA: ln_pos_tile is [1, BLOCK_SIZE_PARTICLES] — broadcasts to 2D
+                    if BLOCK_SIZE_PARTICLES >= 4:
+                        ln_pos_tile = tl.load_tensor_descriptor(ln_pos_desc, [step_idx, pid * BLOCK_SIZE_PARTICLES])
+                        pos_2d = tl.broadcast_to(ln_pos_tile, [BLOCK_SIZE_PATHS, BLOCK_SIZE_PARTICLES])
+                    else:
+                        ln_pos_slice = tl.load(ln_positions_ptr + step_idx * NUM_PARTICLES + p_idx)
+                        pos_2d = tl.broadcast_to(tl.expand_dims(ln_pos_slice, 0), [BLOCK_SIZE_PATHS, BLOCK_SIZE_PARTICLES])
+                    
                     lnS_2d = tl.broadcast_to(tl.expand_dims(step_lnS, 1), [BLOCK_SIZE_PATHS, BLOCK_SIZE_PARTICLES])
-                    pos_2d = tl.broadcast_to(tl.expand_dims(ln_pos_slice, 0), [BLOCK_SIZE_PATHS, BLOCK_SIZE_PARTICLES])
                     
                     any_ex = (pos_2d > lnS_2d) if OPTION_TYPE == 1 else (pos_2d < lnS_2d)
                     just_ex = any_ex & ~done_acc
@@ -147,17 +174,19 @@ def mc_payoff_kernel(
                     ex_step_acc = tl.where(just_ex, step_idx, ex_step_acc)
                     done_acc    = done_acc | any_ex
 
+        # ── BANDWIDTH PATH ───────────────────────────────────────────────
         else:
             for d in tl.static_range(BLOCK_SIZE_DIM):
                 step_idx = dim_offset + d
                 
-                # DIRECT 1D LOADS (No slicing needed)
-                ln_pos_slice = tl.load(ln_positions_ptr + step_idx * NUM_PARTICLES + p_idx)
-                step_lnS = tl.load(st_ptr + step_idx * NUM_BW_PATHS_SAFE + bw_path_offs, mask=bw_mask)
-                current_lnS = step_lnS  # Track for terminal math
+                # LOAD ST via TMA (always valid — NUM_BW_PATHS_SAFE > 0)
+                st_tile = tl.load_tensor_descriptor(st_desc, [step_idx, bw_block_idx * BLOCK_SIZE_PATHS])
+                step_lnS = tl.reshape(st_tile, [BLOCK_SIZE_PATHS])
+                current_lnS = step_lnS
                 
-                # 2. BOUNDARY CHECK
+                # BOUNDARY CHECK
                 if BLOCK_SIZE_PARTICLES == 1:
+                    ln_pos_slice = tl.load(ln_positions_ptr + step_idx * NUM_PARTICLES + p_idx)
                     any_ex = (step_lnS < ln_pos_slice) if OPTION_TYPE == 1 else (step_lnS > ln_pos_slice)
                     just_ex = any_ex & ~done_acc
                     
@@ -165,8 +194,15 @@ def mc_payoff_kernel(
                     ex_step_acc = tl.where(just_ex, step_idx, ex_step_acc)
                     done_acc    = done_acc | any_ex
                 else:
+                    # TMA for ln_positions
+                    if BLOCK_SIZE_PARTICLES >= 4:
+                        ln_pos_tile = tl.load_tensor_descriptor(ln_pos_desc, [step_idx, pid * BLOCK_SIZE_PARTICLES])
+                        pos_2d = tl.broadcast_to(ln_pos_tile, [BLOCK_SIZE_PATHS, BLOCK_SIZE_PARTICLES])
+                    else:
+                        ln_pos_slice = tl.load(ln_positions_ptr + step_idx * NUM_PARTICLES + p_idx)
+                        pos_2d = tl.broadcast_to(tl.expand_dims(ln_pos_slice, 0), [BLOCK_SIZE_PATHS, BLOCK_SIZE_PARTICLES])
+                    
                     lnS_2d = tl.broadcast_to(tl.expand_dims(step_lnS, 1), [BLOCK_SIZE_PATHS, BLOCK_SIZE_PARTICLES])
-                    pos_2d = tl.broadcast_to(tl.expand_dims(ln_pos_slice, 0), [BLOCK_SIZE_PATHS, BLOCK_SIZE_PARTICLES])
                     
                     any_ex = (pos_2d > lnS_2d) if OPTION_TYPE == 1 else (pos_2d < lnS_2d)
                     just_ex = any_ex & ~done_acc
