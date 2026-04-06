@@ -35,7 +35,7 @@ def validate_inputs(pso, manual_blocks=False, initial_positions=None, initial_ve
         f"max_iterations ({pso.comp.max_iterations}) must be divisible by sync_iters ({pso.comp.sync_iters})"
     )
     
-    # NEW: Validate hybrid compute fraction
+    # Validate hybrid compute fraction
     _require(
         0.0 <= pso.comp.compute_fraction <= 1.0,
         f"compute_fraction must be between 0.0 and 1.0 (got {pso.comp.compute_fraction})"
@@ -63,7 +63,7 @@ def validate_inputs(pso, manual_blocks=False, initial_positions=None, initial_ve
     _require_shape(initial_positions, (pso.swarm.num_particles, pso.opt.num_time_steps), "initial_positions")
     _require_shape(initial_velocities, (pso.swarm.num_particles, pso.opt.num_time_steps), "initial_velocities")
 
-    # NEW: precomputed_St shape logic (dependent on compute_fraction) and TMA stride requirements
+    # precomputed_St shape logic (dependent on compute_fraction) and TMA stride requirements
     if precomputed_St is not None:
         total_path_blocks = pso.opt.num_paths // pso.comp.pso_paths_block_size
         num_compute_path_blocks = round(pso.comp.compute_fraction * total_path_blocks)
@@ -96,9 +96,22 @@ def validate_inputs(pso, manual_blocks=False, initial_positions=None, initial_ve
     _require_non_negative(pso.swarm.social_weight, "social_weight")
 
     # compute config params
-    _require_power_of_two(pso.comp.mc_block_size, "mc_block_size")
-    _require_power_of_two(pso.comp.init_block_size, "init_block_size")
+    _require_power_of_two(pso.comp.elementwise_block_size, "elementwise_block_size")
     _require_power_of_two(pso.comp.reduction_block_size, "reduction_block_size")
+
+    total_elements = pso.swarm.num_particles * pso.opt.num_time_steps
+    _require(
+        total_elements % pso.comp.elementwise_block_size == 0,
+        f"Total elements (particles * time_steps = {total_elements}) must be divisible by elementwise_block_size ({pso.comp.elementwise_block_size}). "
+        "Increase your swarm size/dimensions, or decrease the elementwise_block_size."
+    )
+
+    # reduction_block_size must evenly divide num_particles to avoid phantom
+    # lanes in the argmax — both are power-of-two so this means <=.
+    _require(
+        pso.comp.reduction_block_size <= pso.swarm.num_particles,
+        f"reduction_block_size ({pso.comp.reduction_block_size}) must be <= num_particles ({pso.swarm.num_particles})"
+    )
 
     # pso_paths_block_size always uses TMA so must be power-of-two >= 4
     _require(

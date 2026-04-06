@@ -10,3 +10,6 @@ Requires-Dist: matplotlib
 Requires-Dist: pandas
 Requires-Dist: torch>=2.0.0
 Requires-Dist: triton>=3.6.0
+Provides-Extra: bench
+Requires-Dist: QuantLib; extra == "bench"
+Requires-Dist: optlib; extra == "bench"

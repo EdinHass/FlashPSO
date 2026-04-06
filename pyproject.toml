@@ -19,16 +19,28 @@ dependencies = [
     "triton>=3.6.0",
 ]
 
+[project.optional-dependencies]
+bench = [
+    "QuantLib",
+    "optlib",
+]
+
 [project.scripts]
 # Command to run the entire suite
-flash-pso-all = "benchmarks.flash_pso_bench:run_all"
+flash-pso-all = "benchmarks.main:run_all"
 
 # Commands to run specific isolated tests
-flash-pso-single = "benchmarks.flash_pso_bench:run_single"
-flash-pso-baseline = "benchmarks.flash_pso_bench:run_baseline"
-flash-pso-fractions = "benchmarks.flash_pso_bench:run_fraction_sweep"
-flash-pso-scaling = "benchmarks.flash_pso_bench:run_particle_scaling"
-flash-pso-accuracy = "benchmarks.flash_pso_bench:run_accuracy"
+flash-pso-single = "benchmarks.main:run_single"
+flash-pso-baseline = "benchmarks.main:run_baseline"
+flash-pso-fractions = "benchmarks.main:run_fraction_sweep"
+flash-pso-scaling = "benchmarks.main:run_particle_scaling"
+flash-pso-accuracy = "benchmarks.main:run_accuracy"
+flash-pso-variance = "benchmarks.main:run_variance"      # <--- NEW
+flash-pso-latency = "benchmarks.main:run_library_latency"
+flash-pso-asian-latency = "benchmarks.main:run_asian_latency"
+flash-pso-lsmc-latency = "benchmarks.main:run_lsmc_latency"
+flash-pso-basket = "benchmarks.main:run_basket"
+flash-basket-variance = "benchmarks.main:run_basket_variance"
 
 [tool.setuptools]
 packages = ["benchmarks", "references", "flash_pso"]
