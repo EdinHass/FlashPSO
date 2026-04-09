@@ -2,8 +2,10 @@ from dataclasses import dataclass
 import itertools
 import triton
 from typing import List
-
-
+ 
+from flash_pso.enums import OptionType, ExerciseStyle, OptionStyle, RNGType
+ 
+ 
 @dataclass
 class OptionConfig:
     initial_stock_price: float
@@ -13,15 +15,15 @@ class OptionConfig:
     time_to_maturity: float
     num_paths: int
     num_time_steps: int
-    option_type: int = 1
-    option_style: str = "standard"
+    option_type: OptionType = OptionType.PUT
+    option_style: OptionStyle = OptionStyle.STANDARD
     barrier_level: float = float('inf')
-
+ 
     @property
     def time_step_size(self) -> float:
         return self.time_to_maturity / self.num_time_steps
-
-
+ 
+ 
 @dataclass
 class BasketOptionConfig:
     initial_stock_prices: List[float]
@@ -33,26 +35,23 @@ class BasketOptionConfig:
     time_to_maturity: float
     num_paths: int
     num_time_steps: int
-    option_type: int = 1          # 0 = Call, 1 = Put
-    option_style: str = "basket"
-    exercise_style: int = 0       # 0 = scalar boundary, 1 = per-asset boundaries
-
+    option_type: OptionType = OptionType.PUT
+    option_style: OptionStyle = OptionStyle.BASKET
+    exercise_style: ExerciseStyle = ExerciseStyle.SCALAR
+ 
     @property
     def num_assets(self) -> int:
         return len(self.initial_stock_prices)
-
+ 
     @property
     def time_step_size(self) -> float:
         return self.time_to_maturity / self.num_time_steps
-
-
+ 
+ 
 @dataclass
 class ComputeConfig:
     compute_fraction: float = 1.0
-    manual_blocks: bool = False
     pso_paths_block_size: int = 256
-    pso_particles_block_size: int = 256
-    pso_dim_block_size: int = 64
     elementwise_block_size: int = 256
     reduction_block_size: int = 32
     max_iterations: int = 1000
@@ -62,24 +61,21 @@ class ComputeConfig:
     use_fixed_random: bool = False
     use_antithetic: bool = False
     use_fp16_cholesky: bool = False
+    rng_type: RNGType = RNGType.PHILOX
     debug: bool = False
-
+ 
     @property
     def compute_on_the_fly(self) -> bool:
         return self.compute_fraction > 0.0
-
-
+ 
+ 
 @dataclass
 class SwarmConfig:
     num_particles: int
     inertia_weight: float = 0.7298
-    cognitive_weight: float = 1.49618 
-    social_weight: float = 1.49618 
+    cognitive_weight: float = 1.49618
+    social_weight: float = 1.49618
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# AUTOTUNE CONFIGURATIONS
-# ═══════════════════════════════════════════════════════════════════════════════
 
 def get_autotune_configs():
     """1-D (vanilla / Asian) payoff kernel autotune search space."""

@@ -1,0 +1,185 @@
+import time
+import numpy as np
+import torch
+from typing import Union, List
+from rich.console import Console
+from rich.table import Table
+from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
+
+from flash_pso.config import OptionConfig, BasketOptionConfig, ComputeConfig, SwarmConfig
+from flash_pso.enums import OptionStyle, OptionType
+from .models import Method, BenchmarkResult
+from .wrappers import WRAPPER_REGISTRY, _quantlib_basket_lsmc_price, _quantlib_asian_price, _quantlib_american_price
+
+
+class ReferenceCache:
+    _cache = {}
+
+    @classmethod
+    def get(cls, problem: Union[OptionConfig, BasketOptionConfig]) -> float:
+        key = str(problem.__dict__)
+        if key in cls._cache:
+            return cls._cache[key]
+            
+        print(f"Computing High-Precision Reference Target...")
+        
+        if isinstance(problem, BasketOptionConfig):
+            opt_str = 'P' if problem.option_type == OptionType.PUT else 'C'
+            
+            price = _quantlib_basket_lsmc_price(
+                s0s=problem.initial_stock_prices, k=problem.strike_price, r_rate=problem.risk_free_rate,
+                vols=problem.volatilities, weights=problem.weights, corr=problem.correlation_matrix,
+                t=problem.time_to_maturity, opttype=opt_str, paths=500000, steps=problem.num_time_steps
+            )
+        else:
+            opt_str = 'P' if problem.option_type == OptionType.PUT else 'C'
+            if problem.option_style == OptionStyle.ASIAN:
+                price = _quantlib_asian_price(
+                    s0=problem.initial_stock_price, k=problem.strike_price, r_rate=problem.risk_free_rate,
+                    vol=problem.volatility, t=problem.time_to_maturity, opttype=opt_str,
+                    paths=200000, steps=problem.num_time_steps
+                )
+            else:
+                price = _quantlib_american_price(
+                    s0=problem.initial_stock_price, k=problem.strike_price, r_rate=problem.risk_free_rate,
+                    vol=problem.volatility, t=problem.time_to_maturity, opttype=opt_str,
+                    engine_type='binomial', steps=20000
+                )
+            
+        cls._cache[key] = price
+        return price
+
+
+class Benchmark:
+    def __init__(self, name: str, method: Method, 
+                 problem: Union[OptionConfig, BasketOptionConfig], 
+                 compute: ComputeConfig, swarm: SwarmConfig, runs: int = 50):
+        self.name = name
+        self.method = method
+        self.problem = problem
+        self.compute = compute
+        self.swarm = swarm
+        self.runs = runs if method not in [Method.QUANTLIB, Method.NATIVE_BINOMIAL] else 1
+
+    def warmup(self):
+        """Runs the kernel multiple times with strict syncs to trigger Triton JIT and stabilize the PyTorch allocator."""
+        if self.method == Method.FLASH_PSO:
+            wrapper = WRAPPER_REGISTRY[self.method]
+            for _ in range(3):
+                wrapper(self.problem, self.compute, self.swarm, seed=999)
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
+
+    def run(self, progress: Progress, task_id) -> BenchmarkResult:
+        prices = np.zeros(self.runs, dtype=np.float32)
+        init_times, exec_times, iters_ran, wall_times = [], [], [], []
+        
+        ref_price = ReferenceCache.get(self.problem)
+        wrapper = WRAPPER_REGISTRY.get(self.method)
+        
+        if not wrapper:
+            raise NotImplementedError(f"No wrapper registered for {self.method}")
+        
+        for i in range(self.runs):
+            # The Wall Clock captures EVERYTHING (dispatch overhead, GIL wait, queueing)
+            wt0 = time.perf_counter()
+            
+            # wrapper returns init_ms and exec_ms accurately profiled on the Hardware GPU clock
+            price, init_ms, exec_ms, actual_iters = wrapper(self.problem, self.compute, self.swarm, seed=1000 + i)
+            
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
+            wt1 = time.perf_counter()
+            
+            prices[i] = price
+            init_times.append(init_ms)
+            exec_times.append(exec_ms)
+            iters_ran.append(actual_iters)
+            wall_times.append(wt1 - wt0)
+            
+            progress.advance(task_id)
+
+        mean_price = np.mean(prices)
+        
+        return BenchmarkResult(
+            name=self.name,
+            method=self.method,
+            runs=self.runs,
+            mean_price=mean_price,
+            bias=mean_price - ref_price,
+            std_dev=np.std(prices, ddof=1) if self.runs > 1 else 0.0,
+            std_error=(np.std(prices, ddof=1) / np.sqrt(self.runs)) if self.runs > 1 else 0.0,
+            rmse=np.sqrt(np.mean((prices - ref_price)**2)),
+            mean_iters=np.mean(iters_ran),
+            mean_init_time_ms=np.mean(init_times),
+            mean_exec_time_ms=np.mean(exec_times),
+            mean_iter_time_ms=np.sum(exec_times) / max(1, np.sum(iters_ran)),
+            mean_wall_time_s=np.mean(wall_times)
+        )
+
+
+class BenchmarkSuite:
+    def __init__(self, title: str):
+        self.title = title
+        self.benchmarks: List[Benchmark] = []
+        self.results: List[BenchmarkResult] = []
+
+    def add(self, benchmark: Benchmark):
+        self.benchmarks.append(benchmark)
+
+    def run_all(self):
+        console = Console()
+        console.print(f"\n[bold cyan]Starting Suite: {self.title}[/bold cyan]")
+        
+        console.print("[dim]Warming up allocators and JIT compilers...[/dim]")
+        for b in self.benchmarks:
+            b.warmup()
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeElapsedColumn(),
+            console=console
+        ) as progress:
+            overall_task = progress.add_task("[bold green]Total Progress", total=len(self.benchmarks))
+            for bench in self.benchmarks:
+                task = progress.add_task(f"[cyan]Running {bench.name}...", total=bench.runs)
+                result = bench.run(progress, task)
+                self.results.append(result)
+                progress.update(task, visible=False)
+                progress.advance(overall_task)
+
+    def report(self):
+        console = Console()
+        table = Table(title=f"Benchmark Results: {self.title}", show_header=True, header_style="bold magenta")
+        
+        table.add_column("Method", style="cyan", width=28)
+        table.add_column("Mean Price", justify="right")
+        table.add_column("Bias", justify="right")
+        table.add_column("Std Dev", justify="right")
+        table.add_column("Std Err", justify="right")
+        table.add_column("RMSE", justify="right")
+        table.add_column("Iters", justify="right", style="blue")
+        table.add_column("Init (ms)", justify="right", style="yellow")
+        table.add_column("Iter (ms)", justify="right", style="yellow")
+        table.add_column("Wall (s)", justify="right", style="green")
+
+        for r in self.results:
+            iters_str = f"{r.mean_iters:.1f}" if r.method not in [Method.QUANTLIB, Method.NATIVE_BINOMIAL, Method.OPENCL_LSMC] else "-"
+            
+            table.add_row(
+                r.name,
+                f"{r.mean_price:.6f}",
+                f"{r.bias:+.6f}",
+                f"{r.std_dev:.6f}",
+                f"{r.std_error:.6f}",
+                f"{r.rmse:.6f}",
+                iters_str,
+                f"{r.mean_init_time_ms:.2f}",
+                f"{r.mean_iter_time_ms:.4f}" if r.method not in [Method.OPENCL_LSMC, Method.QUANTLIB, Method.NATIVE_BINOMIAL] else f"{r.mean_iter_time_ms:.2f}*",
+                f"{r.mean_wall_time_s:.4f}"
+            )
+            
+        console.print(table)

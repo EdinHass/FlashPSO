@@ -1,6 +1,7 @@
 from .config import OptionConfig, ComputeConfig, SwarmConfig, BasketOptionConfig
 from .api import FlashPSO
 from .api_basket import FlashPSOBasket
+from .enums import OptionType, ExerciseStyle, OptionStyle, RNGType
 
 __all__ = [
     "OptionConfig",
@@ -9,4 +10,8 @@ __all__ = [
     "BasketOptionConfig",
     "FlashPSO",
     "FlashPSOBasket",
+    "OptionType",
+    "ExerciseStyle",
+    "OptionStyle",
+    "RNGType",
 ]

@@ -232,7 +232,6 @@ class LSMC_Numpy(LongStaffBase):
         C_hat = np.sum(dc_cashflow) * df / self.mc.nPath
 
         elapse = (time.perf_counter() - start) * 1e3
-        print(f'Longstaff numpy price: {C_hat} - {elapse} ms')
         return C_hat, elapse, #np.array(coef_t), np.array(dc_cashflow_t)
 
 class LSMC_OpenCL(LongStaffBase):
@@ -417,7 +416,6 @@ class LSMC_OpenCL(LongStaffBase):
         C_hat = np.sum(dc_cashflow) * df / self.mc.nPath
 
         elapse = (time.perf_counter() - start) * 1e3
-        print(f'Longstaff {openCLEnv.deviceName} price: {C_hat} - {elapse} ms')
         return C_hat, elapse, # np.array(coef_t), np.array(dc_cashflow_t)
 
 

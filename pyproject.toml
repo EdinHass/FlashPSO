@@ -26,21 +26,9 @@ bench = [
 ]
 
 [project.scripts]
-# Command to run the entire suite
-flash-pso-all = "benchmarks.main:run_all"
-
 # Commands to run specific isolated tests
-flash-pso-single = "benchmarks.main:run_single"
-flash-pso-baseline = "benchmarks.main:run_baseline"
-flash-pso-fractions = "benchmarks.main:run_fraction_sweep"
-flash-pso-scaling = "benchmarks.main:run_particle_scaling"
-flash-pso-accuracy = "benchmarks.main:run_accuracy"
-flash-pso-variance = "benchmarks.main:run_variance"      # <--- NEW
-flash-pso-latency = "benchmarks.main:run_library_latency"
-flash-pso-asian-latency = "benchmarks.main:run_asian_latency"
-flash-pso-lsmc-latency = "benchmarks.main:run_lsmc_latency"
-flash-pso-basket = "benchmarks.main:run_basket"
-flash-basket-variance = "benchmarks.main:run_basket_variance"
+flash-pso-core = "benchmarks.main:run_core_bench"
+flash-pso-all = "benchmarks.main:run_all_benchmarks"
 
 [tool.setuptools]
 packages = ["benchmarks", "references", "flash_pso"]

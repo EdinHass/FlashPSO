@@ -1,13 +1,3 @@
 [console_scripts]
-flash-basket-variance = benchmarks.main:run_basket_variance
-flash-pso-accuracy = benchmarks.main:run_accuracy
-flash-pso-all = benchmarks.main:run_all
-flash-pso-asian-latency = benchmarks.main:run_asian_latency
-flash-pso-baseline = benchmarks.main:run_baseline
-flash-pso-basket = benchmarks.main:run_basket
-flash-pso-fractions = benchmarks.main:run_fraction_sweep
-flash-pso-latency = benchmarks.main:run_library_latency
-flash-pso-lsmc-latency = benchmarks.main:run_lsmc_latency
-flash-pso-scaling = benchmarks.main:run_particle_scaling
-flash-pso-single = benchmarks.main:run_single
-flash-pso-variance = benchmarks.main:run_variance
+flash-pso-all = benchmarks.main:run_all_benchmarks
+flash-pso-core = benchmarks.main:run_core_bench
