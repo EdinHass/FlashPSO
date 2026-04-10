@@ -9,9 +9,6 @@ import triton
 import triton.language as tl
 from flash_pso.config import get_autotune_configs, get_basket_autotune_configs
 
-# ══════════════════════════════════════════════════════════════════════════════
-# ── Vanilla Helpers ──────────────────────────────────────────────────────────
-# ══════════════════════════════════════════════════════════════════════════════
 
 @triton.jit
 def process_dim_block_compute_vanilla(
@@ -76,10 +73,6 @@ def process_dim_block_bandwidth_vanilla(
 
     return current_lnS, done_acc, ex_lnS_acc, ex_step_acc
 
-
-# ══════════════════════════════════════════════════════════════════════════════
-# ── Vanilla American payoff ──────────────────────────────────────────────────
-# ══════════════════════════════════════════════════════════════════════════════
 
 @triton.autotune(configs=get_autotune_configs(),
                  key=["NUM_PARTICLES", "NUM_PATHS", "NUM_DIMENSIONS", "NUM_COMPUTE_PATH_BLOCKS"],
@@ -186,10 +179,6 @@ def mc_payoff_kernel(
     tl.store(partial_payoffs_ptr + path_block_idx * NUM_PARTICLES + p_idx, payoff_accum)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# ── Asian Helpers ────────────────────────────────────────────────────────────
-# ══════════════════════════════════════════════════════════════════════════════
-
 @triton.jit
 def process_dim_block_compute_asian(
     current_lnS, running_sum, done_acc, ex_avg_acc, ex_step_acc,
@@ -262,10 +251,6 @@ def process_dim_block_bandwidth_asian(
 
     return current_lnS, running_sum, done_acc, ex_avg_acc, ex_step_acc
 
-
-# ══════════════════════════════════════════════════════════════════════════════
-# ── American Asian payoff ────────────────────────────────────────────────────
-# ══════════════════════════════════════════════════════════════════════════════
 
 @triton.autotune(configs=get_autotune_configs(),
                  key=["NUM_PARTICLES", "NUM_PATHS", "NUM_DIMENSIONS", "NUM_COMPUTE_PATH_BLOCKS"],
@@ -370,10 +355,6 @@ def mc_asian_payoff_kernel(
         
     tl.store(partial_payoffs_ptr + path_block_idx * NUM_PARTICLES + p_idx, payoff_accum)
 
-
-# ══════════════════════════════════════════════════════════════════════════════
-# ── Basket Helpers ───────────────────────────────────────────────────────────
-# ══════════════════════════════════════════════════════════════════════════════
 
 @triton.jit
 def process_dim_block_compute_basket(
@@ -523,11 +504,6 @@ def process_dim_block_bandwidth_basket(
 
     return current_lnS, done_acc, ex_S_acc, ex_step_acc
 
-
-# ══════════════════════════════════════════════════════════════════════════════
-# ── Basket payoff (scalar + per-asset exercise) ─────────────────────────────
-# ══════════════════════════════════════════════════════════════════════════════
-
 @triton.autotune(configs=get_basket_autotune_configs(),
                  key=["NUM_PARTICLES", "NUM_PATHS", "NUM_DIMENSIONS", "NUM_COMPUTE_PATH_BLOCKS", "NUM_ASSETS", "EXERCISE_STYLE"])
 @triton.jit
@@ -643,3 +619,4 @@ def mc_basket_payoff_kernel(
         payoff_accum = payoff_accum + tl.sum(payoff * final_disc, axis=0)
         
     tl.store(partial_payoffs_ptr + path_block_idx * NUM_PARTICLES + p_idx, payoff_accum)
+

@@ -152,6 +152,8 @@ def run_all_benchmarks():
     print("="*60 + "\n")
     
     sweeps = [
+        ("Core Vanilla Performance", run_core_bench),
+        ("Asian (Path-Dependent) Options Sweep", run_asian_sweep),
         ("Multi-Asset Basket Sweep", run_basket_sweep),
         ("Particle Density Sweep", run_particle_sweep),
         ("Monte Carlo Path Sweep", run_path_sweep),

@@ -1,4 +1,7 @@
 import time
+import os
+import csv
+from datetime import datetime
 import numpy as np
 import torch
 from typing import Union, List
@@ -119,8 +122,9 @@ class Benchmark:
 
 
 class BenchmarkSuite:
-    def __init__(self, title: str):
+    def __init__(self, title: str, output_dir: str = "./benchmarks/results"):
         self.title = title
+        self.output_dir = output_dir
         self.benchmarks: List[Benchmark] = []
         self.results: List[BenchmarkResult] = []
 
@@ -150,6 +154,43 @@ class BenchmarkSuite:
                 self.results.append(result)
                 progress.update(task, visible=False)
                 progress.advance(overall_task)
+
+    def save_csv(self) -> str:
+        """Saves the benchmark results to a CSV file."""
+        os.makedirs(self.output_dir, exist_ok=True)
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_title = self.title.replace(" ", "_").replace("/", "-").lower()
+        filepath = os.path.join(self.output_dir, f"{safe_title}_{timestamp}.csv")
+        
+        with open(filepath, mode='w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            
+            # Write Header
+            writer.writerow([
+                "Method", "Mean Price", "Bias", "Std Dev", "Std Err", 
+                "RMSE", "Mean Iters", "Init Time (ms)", "Iter Time (ms)", "Wall Time (s)"
+            ])
+            
+            # Write Rows
+            for r in self.results:
+                iters_str = f"{r.mean_iters:.1f}" if r.method not in [Method.QUANTLIB, Method.NATIVE_BINOMIAL, Method.OPENCL_LSMC] else "N/A"
+                iter_time_str = f"{r.mean_iter_time_ms:.4f}" if r.method not in [Method.OPENCL_LSMC, Method.QUANTLIB, Method.NATIVE_BINOMIAL] else f"{r.mean_iter_time_ms:.2f}"
+                
+                writer.writerow([
+                    r.name,
+                    f"{r.mean_price:.6f}",
+                    f"{r.bias:+.6f}",
+                    f"{r.std_dev:.6f}",
+                    f"{r.std_error:.6f}",
+                    f"{r.rmse:.6f}",
+                    iters_str,
+                    f"{r.mean_init_time_ms:.2f}",
+                    iter_time_str,
+                    f"{r.mean_wall_time_s:.4f}"
+                ])
+                
+        return filepath
 
     def report(self):
         console = Console()
@@ -183,3 +224,7 @@ class BenchmarkSuite:
             )
             
         console.print(table)
+        
+        # Save to CSV and notify user
+        csv_path = self.save_csv()
+        console.print(f"\n[bold green]✔[/bold green] Results saved to: [dim]{csv_path}[/dim]")

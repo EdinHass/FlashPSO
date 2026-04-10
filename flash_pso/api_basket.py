@@ -15,7 +15,7 @@ from flash_pso.enums import ExerciseStyle, RNGType
 from flash_pso.asserts import validate_basket_inputs
 
 _cc_major, _ = torch.cuda.get_device_capability()
-if _cc_major >= 9:
+if _cc_major >= 8:
     from flash_pso.sm90.pso_kernels import init_kernel, pso_update_kernel
     from flash_pso.sm90.pso_utils import reduce_pbest_local, reduce_pbest_global
     from flash_pso.sm90.payoff_kernels import mc_basket_payoff_kernel
@@ -68,7 +68,7 @@ class FlashPSOBasket:
         self.vol_l2_vec = (self.vol_vec * math.sqrt(self.opt.time_step_size) * LOG2E).to("cuda")
 
         corr = torch.tensor(self.opt.correlation_matrix, device="cuda", dtype=torch.float32)
-        self.L_mat = torch.linalg.cholesky(corr)
+        self.L_mat = torch.linalg.cholesky(corr).contiguous()
 
         total_path_blocks = self.opt.num_paths // self.comp.pso_paths_block_size
         self._num_compute_path_blocks = round(self.comp.compute_fraction * total_path_blocks)

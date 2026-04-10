@@ -148,7 +148,6 @@ class FlashPSO:
         return float(self.global_payoffs_cpu[self.global_payoff_index - 1])
 
     def get_debiased_price(self) -> float:
-        """Out-of-sample price on fresh paths. Eliminates optimization bias."""
         fresh_mc_offset = self.offset
         self.offset += int(self.opt.num_paths) * int(self.num_dimensions)
         saved = self.mc_offset_philox
@@ -162,7 +161,7 @@ class FlashPSO:
             self._precompute_mc_paths()
 
         gbest_expanded = self.gbest_pos.unsqueeze(0).expand(self.num_particles, -1)
-        self.positions.copy_(gbest_expanded.t())
+        self.positions.copy_(gbest_expanded)
         self.ln_positions.copy_(torch.log2(torch.clamp(self.positions, min=1e-4)))
         self.pbest_payoff.fill_(float("-inf"))
         self.gbest_payoff.fill_(float("-inf"))
