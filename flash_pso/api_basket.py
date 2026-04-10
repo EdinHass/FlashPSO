@@ -15,7 +15,7 @@ from flash_pso.enums import ExerciseStyle, RNGType
 from flash_pso.asserts import validate_basket_inputs
 
 _cc_major, _ = torch.cuda.get_device_capability()
-if _cc_major >= 8:
+if _cc_major >= 9:
     from flash_pso.sm90.pso_kernels import init_kernel, pso_update_kernel
     from flash_pso.sm90.pso_utils import reduce_pbest_local, reduce_pbest_global
     from flash_pso.sm90.payoff_kernels import mc_basket_payoff_kernel

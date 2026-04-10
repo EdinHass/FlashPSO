@@ -2,6 +2,9 @@ import triton
 import triton.language as tl
 from flash_pso.config import get_autotune_configs, get_basket_autotune_configs
 
+@triton.jit
+def _make_dummy_tensor_descriptor(base):
+    return tl.make_tensor_descriptor(base=base, shape=[4], strides=[1], block_shape=[4])
 
 @triton.jit
 def process_dim_block_compute_vanilla(
@@ -94,11 +97,9 @@ def mc_payoff_kernel(
     if BLOCK_SIZE_PARTICLES >= 4:
         ln_pos_desc = tl.make_tensor_descriptor(base=ln_positions_ptr, shape=[NUM_DIMENSIONS, NUM_PARTICLES], strides=[NUM_PARTICLES, 1], block_shape=[1, BLOCK_SIZE_PARTICLES])
     else:
-        ln_pos_desc = ln_positions_ptr
-    if NUM_BW_PATHS > 0:
-        st_desc = tl.make_tensor_descriptor(base=st_ptr, shape=[NUM_DIMENSIONS, NUM_BW_PATHS], strides=[NUM_BW_PATHS, 1], block_shape=[1, BLOCK_SIZE_PATHS])
-    else:
-        st_desc = st_ptr
+        ln_pos_desc = _make_dummy_tensor_descriptor(ln_positions_ptr)
+
+    st_desc = tl.make_tensor_descriptor(base=st_ptr, shape=[NUM_DIMENSIONS, NUM_BW_PATHS], strides=[NUM_BW_PATHS, 1], block_shape=[1, BLOCK_SIZE_PATHS])
 
     payoff_accum = tl.zeros([BLOCK_SIZE_PARTICLES], dtype=tl.float32)
     if BLOCK_SIZE_PARTICLES == 1:
@@ -264,11 +265,10 @@ def mc_asian_payoff_kernel(
     if BLOCK_SIZE_PARTICLES >= 4:
         ln_pos_desc = tl.make_tensor_descriptor(base=ln_positions_ptr, shape=[NUM_DIMENSIONS, NUM_PARTICLES], strides=[NUM_PARTICLES, 1], block_shape=[1, BLOCK_SIZE_PARTICLES])
     else:
-        ln_pos_desc = ln_positions_ptr
-    if NUM_BW_PATHS > 0:
-        st_desc = tl.make_tensor_descriptor(base=st_ptr, shape=[NUM_DIMENSIONS, NUM_BW_PATHS], strides=[NUM_BW_PATHS, 1], block_shape=[1, BLOCK_SIZE_PATHS])
-    else:
-        st_desc = st_ptr
+        ln_pos_desc = _make_dummy_tensor_descriptor(ln_positions_ptr)
+
+    # path block always > 4
+    st_desc = tl.make_tensor_descriptor(base=st_ptr, shape=[NUM_DIMENSIONS, NUM_BW_PATHS], strides=[NUM_BW_PATHS, 1], block_shape=[1, BLOCK_SIZE_PATHS])
 
     payoff_accum = tl.zeros([BLOCK_SIZE_PARTICLES], dtype=tl.float32)
     if BLOCK_SIZE_PARTICLES == 1:
@@ -509,7 +509,7 @@ def mc_basket_payoff_kernel(
         else:
             ln_pos_desc = tl.make_tensor_descriptor(base=ln_positions_ptr, shape=[NUM_DIMENSIONS, NUM_PARTICLES], strides=[NUM_PARTICLES, 1], block_shape=[1, BLOCK_SIZE_PARTICLES])
     else:
-        ln_pos_desc = ln_positions_ptr
+        ln_pos_desc = _make_dummy_tensor_descriptor(ln_positions_ptr)
 
     st_scalar_desc = tl.make_tensor_descriptor(base=st_ptr, shape=[NUM_DIMENSIONS, NUM_BW_PATHS], strides=[NUM_BW_PATHS, 1], block_shape=[1, BLOCK_SIZE_PATHS])
     st_perasset_desc = tl.make_tensor_descriptor(base=st_ptr, shape=[NUM_DIMENSIONS * NUM_ASSETS, NUM_BW_PATHS], strides=[NUM_BW_PATHS, 1], block_shape=[NUM_ASSETS, BLOCK_SIZE_PATHS])
