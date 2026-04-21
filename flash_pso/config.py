@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import itertools
 import triton
+import math
 from typing import List
  
 from flash_pso.enums import OptionType, ExerciseStyle, OptionStyle, RNGType
@@ -22,6 +23,26 @@ class OptionConfig:
     @property
     def time_step_size(self) -> float:
         return self.time_to_maturity / self.num_time_steps
+
+    @property
+    def log2_S0(self) -> float:
+        return math.log2(self.initial_stock_price)
+
+    @property
+    def drift_l2(self) -> float:
+        return (self.risk_free_rate - 0.5 * self.volatility * self.volatility) * self.time_step_size * math.log2(math.e)
+
+    @property
+    def vol_l2(self) -> float:
+        return self.volatility * math.sqrt(self.time_step_size) * math.log2(math.e)
+
+    @property
+    def r_dt_l2(self) -> float:
+        return -self.risk_free_rate * self.time_step_size * math.log2(math.e)
+
+    @property
+    def terminal_discount(self) -> float:
+        return 2.0 ** (self.r_dt_l2 * self.num_time_steps)
  
  
 @dataclass
@@ -50,6 +71,7 @@ class BasketOptionConfig:
  
 @dataclass
 class ComputeConfig:
+    seed: int
     compute_fraction: float = 1.0
     pso_paths_block_size: int = 256
     elementwise_block_size: int = 256
@@ -57,7 +79,6 @@ class ComputeConfig:
     max_iterations: int = 1000
     sync_iters: int = 10
     convergence_threshold: float = 1e-6
-    seed: int = 42
     use_fixed_random: bool = False
     use_antithetic: bool = False
     use_fp16_cholesky: bool = False
@@ -81,10 +102,10 @@ def get_autotune_configs():
     """1-D (vanilla / Asian) payoff kernel autotune search space."""
     configs = []
 
-    particle_blocks = [1]
-    dim_blocks      = [1]
-    warps           = [8]
-    stages          = [1]
+    particle_blocks = [1, 4, 8]
+    dim_blocks      = [1, 4]
+    warps           = [4, 8, 16]
+    stages          = [1, 2]
     loop_unroll_l   = [8]
     loop_stages_l   = [1]
     warp_spec_l     = [False]

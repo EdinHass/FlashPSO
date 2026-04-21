@@ -18,11 +18,11 @@ import triton.language as tl
 @triton.jit
 def mc_path_kernel(
     St_ptr, Z_ptr,
-    S0, r, sigma, dt,
+    log2_S0, drift_l2, vol_l2,
     num_paths, seed, mc_offset_philox,
+    bandwidth_paths_start,
     BLOCK_SIZE: tl.constexpr,
     NUM_TIME_STEPS: tl.constexpr,
-    BANDWIDTH_PATHS_START: tl.constexpr,
     USE_ANTITHETIC: tl.constexpr,
     USE_PRECOMPUTED_Z: tl.constexpr,
 ):
@@ -32,18 +32,15 @@ def mc_path_kernel(
         strides=[num_paths, 1], block_shape=[1, BLOCK_SIZE],
     )
 
-    LOG2E = 1.4426950408889634
-    drift_l2 = (r - 0.5 * sigma * sigma) * dt * LOG2E
-    vol_l2 = sigma * tl.sqrt(dt) * LOG2E
-    lnS = tl.full([BLOCK_SIZE], tl.log(S0) * LOG2E, dtype=tl.float32)
+    lnS = tl.full([BLOCK_SIZE], log2_S0, dtype=tl.float32)
 
     path_idx = (pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)).to(tl.int64)
     mask = path_idx < num_paths
 
     if USE_ANTITHETIC:
-        first_offs = (BANDWIDTH_PATHS_START + pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE // 2)).to(tl.int64)
+        first_offs = (bandwidth_paths_start + pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE // 2)).to(tl.int64)
     else:
-        path_offsets = (BANDWIDTH_PATHS_START + path_idx).to(tl.int64)
+        path_offsets = (bandwidth_paths_start + path_idx).to(tl.int64)
 
     for t in range(NUM_TIME_STEPS):
         if USE_PRECOMPUTED_Z:
@@ -62,10 +59,10 @@ def mc_path_kernel(
 
 @triton.jit
 def mc_basket_collapse_kernel(
-    St_ptr, Z_ptr, S0_ptr, drift_ptr, vol_ptr, weights_ptr, L_ptr,
-    r, dt, num_bw_paths, seed, mc_offset_philox,
-    BLOCK_SIZE: tl.constexpr, NUM_TIME_STEPS: tl.constexpr, NUM_ASSETS: tl.constexpr,
-    BANDWIDTH_PATHS_START: tl.constexpr, TOTAL_NUM_PATHS: tl.constexpr,
+    St_ptr, Z_ptr, log2_S0_ptr, drift_ptr, vol_ptr, weights_ptr, L_ptr,
+    num_bw_paths, seed, mc_offset_philox, bandwidth_paths_start,
+    BLOCK_SIZE: tl.constexpr, NUM_TIME_STEPS: tl.constexpr, 
+    NUM_ASSETS: tl.constexpr, TOTAL_NUM_PATHS: tl.constexpr,
     USE_ANTITHETIC: tl.constexpr, USE_FP16: tl.constexpr, USE_PRECOMPUTED_Z: tl.constexpr,
 ):
     pid = tl.program_id(0)
@@ -85,18 +82,17 @@ def mc_basket_collapse_kernel(
     else:
         Z_desc = Z_ptr
 
-    S0 = tl.load(S0_ptr + assets_offs)
+    log2_S0 = tl.load(log2_S0_ptr + assets_offs)
     drift = tl.load(drift_ptr + assets_offs)
     vol = tl.load(vol_ptr + assets_offs)
     weights = tl.load(weights_ptr + assets_offs)
 
-    LOG2E = 1.4426950408889634
-    current_lnS = tl.broadcast_to(tl.log(tl.expand_dims(S0, 1)) * LOG2E, [NUM_ASSETS, BLOCK_SIZE])
+    current_lnS = tl.broadcast_to(tl.expand_dims(log2_S0, 1), [NUM_ASSETS, BLOCK_SIZE])
     drift_exp = tl.expand_dims(drift, 1)
     vol_exp = tl.expand_dims(vol, 1)
     weights_exp = tl.expand_dims(weights, 1)
 
-    actual_path_idx = BANDWIDTH_PATHS_START + pid * BLOCK_SIZE
+    actual_path_idx = bandwidth_paths_start + pid * BLOCK_SIZE
     if USE_ANTITHETIC:
         first_offs = (actual_path_idx + tl.arange(0, BLOCK_SIZE // 2)).to(tl.int64)
     else:
@@ -156,11 +152,11 @@ def mc_basket_collapse_kernel(
 
 @triton.jit
 def mc_basket_path_kernel(
-    st_ptr, Z_ptr, S0_ptr, drift_ptr, vol_ptr, L_ptr,
-    r, dt, num_bw_paths, seed, mc_offset_philox,
+    st_ptr, Z_ptr, log2_S0_ptr, drift_ptr, vol_ptr, L_ptr,
+    num_bw_paths, seed, mc_offset_philox, bandwidth_paths_start,
     BLOCK_SIZE: tl.constexpr, NUM_TIME_STEPS: tl.constexpr, NUM_ASSETS: tl.constexpr,
-    BANDWIDTH_PATHS_START: tl.constexpr, TOTAL_NUM_PATHS: tl.constexpr,
-    USE_ANTITHETIC: tl.constexpr, USE_FP16: tl.constexpr, USE_PRECOMPUTED_Z: tl.constexpr,
+    TOTAL_NUM_PATHS: tl.constexpr, USE_ANTITHETIC: tl.constexpr,
+    USE_FP16: tl.constexpr, USE_PRECOMPUTED_Z: tl.constexpr,
 ):
     pid = tl.program_id(0)
     assets_offs = tl.arange(0, NUM_ASSETS)
@@ -179,16 +175,15 @@ def mc_basket_path_kernel(
     else:
         Z_desc = Z_ptr
 
-    S0 = tl.load(S0_ptr + assets_offs)
+    log2_S0 = tl.load(log2_S0_ptr + assets_offs)
     drift = tl.load(drift_ptr + assets_offs)
     vol = tl.load(vol_ptr + assets_offs)
 
-    LOG2E = 1.4426950408889634
-    current_lnS = tl.broadcast_to(tl.log(tl.expand_dims(S0, 1)) * LOG2E, [NUM_ASSETS, BLOCK_SIZE])
+    current_lnS = tl.broadcast_to(tl.expand_dims(log2_S0, 1), [NUM_ASSETS, BLOCK_SIZE])
     drift_exp = tl.expand_dims(drift, 1)
     vol_exp = tl.expand_dims(vol, 1)
 
-    actual_path_idx = BANDWIDTH_PATHS_START + pid * BLOCK_SIZE
+    actual_path_idx = bandwidth_paths_start + pid * BLOCK_SIZE
     if USE_ANTITHETIC:
         first_offs = (actual_path_idx + tl.arange(0, BLOCK_SIZE // 2)).to(tl.int64)
     else:

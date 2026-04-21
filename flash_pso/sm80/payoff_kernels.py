@@ -80,7 +80,7 @@ def process_dim_block_bandwidth_vanilla(
 @triton.jit
 def mc_payoff_kernel(
     ln_positions_ptr, st_ptr, partial_payoffs_ptr,
-    S0, r, sigma, dt, seed, mc_offset_philox,
+    seed, mc_offset_philox, log2_S0, drift_l2, vol_l2, r_dt_l2, terminal_discount,
     NUM_DIMENSIONS: tl.constexpr, NUM_PARTICLES: tl.constexpr, NUM_PATHS: tl.constexpr,
     NUM_COMPUTE_PATH_BLOCKS: tl.constexpr,
     BLOCK_SIZE_PARTICLES: tl.constexpr, BLOCK_SIZE_PATHS: tl.constexpr, BLOCK_SIZE_DIM: tl.constexpr,
@@ -113,10 +113,7 @@ def mc_payoff_kernel(
         ex_lnS_acc = tl.zeros([BLOCK_SIZE_PATHS, BLOCK_SIZE_PARTICLES], dtype=tl.float32)
         ex_step_acc = tl.full([BLOCK_SIZE_PATHS, BLOCK_SIZE_PARTICLES], -1, dtype=tl.int32)
 
-    LOG2E = 1.4426950408889634
-    drift_l2 = (r - 0.5 * sigma * sigma) * dt * LOG2E
-    vol_l2 = sigma * tl.sqrt(dt) * LOG2E
-    current_lnS = tl.full([BLOCK_SIZE_PATHS], tl.log(S0) * LOG2E, dtype=tl.float32)
+    current_lnS = tl.full([BLOCK_SIZE_PATHS], log2_S0, dtype=tl.float32)
 
     if USE_ANTITHETIC:
         base_path_idx = path_block_idx * BLOCK_SIZE_PATHS
@@ -158,19 +155,16 @@ def mc_payoff_kernel(
                 BLOCK_SIZE_DIM, BLOCK_SIZE_PATHS, BLOCK_SIZE_PARTICLES, OPTION_TYPE, USE_ANTITHETIC
             )
 
-    terminal_lnS_acc = current_lnS
-    r_dt_l2 = -r * dt * LOG2E
-    terminal_discount = tl.exp2(r_dt_l2 * NUM_DIMENSIONS)
     ex_disc_acc = tl.exp2((ex_step_acc.to(tl.float32) + 1.0) * r_dt_l2)
     
     if BLOCK_SIZE_PARTICLES == 1:
-        final_lnS = tl.where(done_acc, ex_lnS_acc, terminal_lnS_acc)
+        final_lnS = tl.where(done_acc, ex_lnS_acc, current_lnS)
         final_disc = tl.where(done_acc, ex_disc_acc, terminal_discount)
         final_S = tl.exp2(final_lnS)
         payoff = tl.maximum(0.0, STRIKE_PRICE - final_S) if OPTION_TYPE == 1 else tl.maximum(0.0, final_S - STRIKE_PRICE)
         payoff_accum = payoff_accum + tl.sum(payoff * final_disc, axis=0, keep_dims=True)
     else:
-        final_lnS = tl.where(done_acc, ex_lnS_acc, terminal_lnS_acc[:, None])
+        final_lnS = tl.where(done_acc, ex_lnS_acc, current_lnS[:, None])
         final_disc = tl.where(done_acc, ex_disc_acc, terminal_discount)
         final_S = tl.exp2(final_lnS)
         payoff = tl.maximum(0.0, STRIKE_PRICE - final_S) if OPTION_TYPE == 1 else tl.maximum(0.0, final_S - STRIKE_PRICE)
@@ -258,7 +252,7 @@ def process_dim_block_bandwidth_asian(
 @triton.jit
 def mc_asian_payoff_kernel(
     ln_positions_ptr, st_ptr, partial_payoffs_ptr,
-    S0, r, sigma, dt, seed, mc_offset_philox,
+    seed, mc_offset_philox, log2_S0, drift_l2, vol_l2, r_dt_l2, terminal_discount,
     NUM_DIMENSIONS: tl.constexpr, NUM_PARTICLES: tl.constexpr, NUM_PATHS: tl.constexpr,
     NUM_COMPUTE_PATH_BLOCKS: tl.constexpr,
     BLOCK_SIZE_PARTICLES: tl.constexpr, BLOCK_SIZE_PATHS: tl.constexpr, BLOCK_SIZE_DIM: tl.constexpr,
@@ -291,10 +285,7 @@ def mc_asian_payoff_kernel(
         ex_avg_acc = tl.zeros([BLOCK_SIZE_PATHS, BLOCK_SIZE_PARTICLES], dtype=tl.float32)
         ex_step_acc = tl.full([BLOCK_SIZE_PATHS, BLOCK_SIZE_PARTICLES], -1, dtype=tl.int32)
 
-    LOG2E = 1.4426950408889634
-    drift_l2 = (r - 0.5 * sigma * sigma) * dt * LOG2E
-    vol_l2 = sigma * tl.sqrt(dt) * LOG2E
-    current_lnS = tl.full([BLOCK_SIZE_PATHS], tl.log(S0) * LOG2E, dtype=tl.float32)
+    current_lnS = tl.full([BLOCK_SIZE_PATHS], log2_S0, dtype=tl.float32)
     running_sum = tl.zeros([BLOCK_SIZE_PATHS], dtype=tl.float32)
 
     if USE_ANTITHETIC:
@@ -338,8 +329,7 @@ def mc_asian_payoff_kernel(
             )
 
     terminal_avg_acc = running_sum / NUM_DIMENSIONS
-    r_dt_l2 = -r * dt * LOG2E
-    terminal_discount = tl.exp2(r_dt_l2 * NUM_DIMENSIONS)
+
     ex_disc_acc = tl.exp2((ex_step_acc.to(tl.float32) + 1.0) * r_dt_l2)
     
     if BLOCK_SIZE_PARTICLES == 1:
@@ -509,8 +499,8 @@ def process_dim_block_bandwidth_basket(
 @triton.jit
 def mc_basket_payoff_kernel(
     ln_positions_ptr, st_ptr, partial_payoffs_ptr,
-    S0_ptr, drift_ptr, vol_ptr, weights_ptr, L_ptr,
-    r, dt, seed, mc_offset_philox,
+    log2_S0_ptr, drift_ptr, vol_ptr, weights_ptr, L_ptr,
+    r_dt_l2, terminal_discount, seed, mc_offset_philox,
     NUM_DIMENSIONS: tl.constexpr, NUM_PARTICLES: tl.constexpr, NUM_PATHS: tl.constexpr,
     NUM_COMPUTE_PATH_BLOCKS: tl.constexpr,
     BLOCK_SIZE_PARTICLES: tl.constexpr, BLOCK_SIZE_PATHS: tl.constexpr, BLOCK_SIZE_DIM: tl.constexpr,
@@ -539,13 +529,12 @@ def mc_basket_payoff_kernel(
 
     a_offs_1d = tl.arange(0, NUM_ASSETS)
 
-    S0 = tl.load(S0_ptr + a_offs_1d)
+    log2_S0 = tl.load(log2_S0_ptr + a_offs_1d)
     drift = tl.load(drift_ptr + a_offs_1d)
     vol = tl.load(vol_ptr + a_offs_1d)
     weights = tl.load(weights_ptr + a_offs_1d)
     
-    LOG2E = 1.4426950408889634
-    current_lnS = tl.broadcast_to(tl.log(S0[:, None]) * LOG2E, [NUM_ASSETS, BLOCK_SIZE_PATHS])
+    current_lnS = tl.broadcast_to(log2_S0[:, None], [NUM_ASSETS, BLOCK_SIZE_PATHS])
     drift_exp = drift[:, None]; vol_exp = vol[:, None]; weights_exp = weights[:, None]
 
     payoff_accum = tl.zeros([BLOCK_SIZE_PARTICLES], dtype=tl.float32)
@@ -603,8 +592,6 @@ def mc_basket_payoff_kernel(
     basket_S_terminal = tl.sum(masked_terminal_S * weights_exp, axis=0)
     terminal_S_acc = basket_S_terminal
     
-    r_dt_l2 = -r * dt * LOG2E
-    terminal_discount = tl.exp2(r_dt_l2 * NUM_DIMENSIONS)
     ex_disc_acc = tl.exp2((ex_step_acc.to(tl.float32) + 1.0) * r_dt_l2)
     
     if BLOCK_SIZE_PARTICLES == 1:
@@ -619,4 +606,3 @@ def mc_basket_payoff_kernel(
         payoff_accum = payoff_accum + tl.sum(payoff * final_disc, axis=0)
         
     tl.store(partial_payoffs_ptr + path_block_idx * NUM_PARTICLES + p_idx, payoff_accum)
-

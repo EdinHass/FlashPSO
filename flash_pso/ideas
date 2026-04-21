@@ -1,17 +1,4 @@
-OPTIMIZATION IDEAS (do ablation studies on some of these later):
-1. only do local PSO since its cheaper for SMEM
-2. lazy init of PSO, only init when needed
-3. move everything to a GPU (paper uses CPU for updating global best and path recomputation, but this is a bottleneck since it requires copying data back and forth)
-4. recompute the paths on the fly so that memory bandwidth is not a bottleneck
-
-Future work:
-1. Multiple GPU support 
-2. Cutlass for more control over reductions and also keeping things in shared memory and using wider locals by using block clusters instead of just blocks
-3. More general PSO implementation that can be used for other problems (e.g. TSP, knapsack, etc.)
-4. Add make tensor descriptors for more efficient memory access patterns
-5. Add support for mixed precision (e.g. FP16) to further reduce memory bandwidth
-6. Use gdc_wait to overlap the global best update and path recomputation with the local PSO updates
-7. in the MC_kernels make some stuff static
-8. swizzle the tensors to improve memory access patterns (e.g. use a tiled layout for the particles and their velocities)
-9. get rid of the tensor descriptors and just use raw pointers to load particles
-10. cacluate some blocks on the fly and others we fetch!
+TODO: 
+- autotune more kernels
+- persistent kernels
+- check if 1e-4 limit is good enough

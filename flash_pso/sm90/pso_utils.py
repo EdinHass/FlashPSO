@@ -47,7 +47,7 @@ def reduce_pbest_local(
     new_pbest = tl.where(should_update, payoff_avg, pbest_payoff)
     tl.store(pbest_payoffs_ptr + offsets, new_pbest)
 
-    for d in tl.static_range(NUM_DIMENSIONS):
+    for d in tl.range(NUM_DIMENSIONS, num_stages=2):
         pos_vals = tl.load(positions_ptr + d * NUM_PARTICLES + offsets)
         tl.store(pbest_positions_ptr + d * NUM_PARTICLES + offsets, pos_vals, mask=should_update)
 

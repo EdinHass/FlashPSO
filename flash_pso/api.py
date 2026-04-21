@@ -15,12 +15,15 @@ from flash_pso.enums import OptionStyle, RNGType
 from flash_pso.asserts import validate_inputs
 
 _cc_major, _ = torch.cuda.get_device_capability()
+print(f"Detected GPU with compute capability {_cc_major}.")
 if _cc_major >= 9:
+    print("Using SM90 kernels")
     from flash_pso.sm90.pso_kernels import init_kernel, pso_update_kernel
     from flash_pso.sm90.payoff_kernels import mc_payoff_kernel, mc_asian_payoff_kernel
     from flash_pso.sm90.mc_kernels import mc_path_kernel
     from flash_pso.sm90.pso_utils import reduce_pbest_local, reduce_pbest_global
 else:
+    print("Using SM80 kernels")
     from flash_pso.sm80.pso_kernels import init_kernel, pso_update_kernel
     from flash_pso.sm80.payoff_kernels import mc_payoff_kernel, mc_asian_payoff_kernel
     from flash_pso.sm80.mc_kernels import mc_path_kernel
@@ -65,6 +68,12 @@ class FlashPSO:
         self.comp = compute_config
         self.swarm = swarm_config
         validate_inputs(self, initial_positions, initial_velocities, precomputed_St)
+
+        self.log2_S0 = self.opt.log2_S0
+        self.drift_l2 = self.opt.drift_l2
+        self.vol_l2 = self.opt.vol_l2
+        self.r_dt_l2 = self.opt.r_dt_l2
+        self.terminal_discount = self.opt.terminal_discount
 
         mc_span = int(self.opt.num_paths) * int(self.num_dimensions)
         init_span = int(self.num_particles) * int(self.num_dimensions)
@@ -124,6 +133,9 @@ class FlashPSO:
 
         self._partial_payoffs = torch.empty(
             (self.opt.num_paths // self.comp.pso_paths_block_size, P), device="cuda", dtype=torch.float32)
+        self._num_reduction_blocks = int(triton.cdiv(self.num_particles, self.comp.reduction_block_size))
+        self._scratch_payoffs = torch.empty((self._num_reduction_blocks,), device="cuda", dtype=torch.float32)
+        self._scratch_particle_idx = torch.empty((self._num_reduction_blocks,), device="cuda", dtype=torch.int32)
         buffer_size = self.comp.max_iterations // self.comp.sync_iters
         self.global_payoffs_cpu = np.empty((buffer_size,), dtype=np.float32)
         self.global_payoff_index = 0
@@ -215,13 +227,12 @@ class FlashPSO:
         grid = (triton.cdiv(self._num_bw_paths, self.comp.pso_paths_block_size),)
         mc_path_kernel[grid](
             St_ptr=self.St, Z_ptr=self.Z,
-            S0=self.opt.initial_stock_price, r=self.opt.risk_free_rate,
-            sigma=self.opt.volatility, dt=self.opt.time_step_size,
+            log2_S0=self.log2_S0, drift_l2=self.drift_l2, vol_l2=self.vol_l2,
             num_paths=self._num_bw_paths, seed=self.comp.seed,
             mc_offset_philox=self.mc_offset_philox,
+            bandwidth_paths_start=self._num_compute_paths,
             BLOCK_SIZE=tl.constexpr(self.comp.pso_paths_block_size),
             NUM_TIME_STEPS=tl.constexpr(self.opt.num_time_steps),
-            BANDWIDTH_PATHS_START=tl.constexpr(self._num_compute_paths),
             USE_ANTITHETIC=tl.constexpr(self.comp.use_antithetic),
             USE_PRECOMPUTED_Z=tl.constexpr(self.comp.rng_type == RNGType.SOBOL),
         )
@@ -252,9 +263,8 @@ class FlashPSO:
         kernel[grid_mc](
             ln_positions_ptr=self.ln_positions, st_ptr=self.St,
             partial_payoffs_ptr=self._partial_payoffs,
-            S0=self.opt.initial_stock_price, r=self.opt.risk_free_rate,
-            sigma=self.opt.volatility, dt=self.opt.time_step_size,
             seed=self.comp.seed, mc_offset_philox=self.mc_offset_philox,
+            log2_S0=self.log2_S0, drift_l2=self.drift_l2, vol_l2=self.vol_l2, r_dt_l2=self.r_dt_l2, terminal_discount=self.terminal_discount,
             NUM_DIMENSIONS=self.num_dimensions, NUM_PARTICLES=self.num_particles,
             NUM_PATHS=self.opt.num_paths,
             NUM_COMPUTE_PATH_BLOCKS=self._num_compute_path_blocks,
@@ -264,27 +274,24 @@ class FlashPSO:
         )
 
     def _reduce_pbest(self):
-        num_blocks = int(triton.cdiv(self.num_particles, self.comp.reduction_block_size))
-        scratch_payoffs = torch.empty((num_blocks,), device="cuda", dtype=torch.float32)
-        scratch_particle_idx = torch.empty((num_blocks,), device="cuda", dtype=torch.int32)
         actual_num_path_blocks = self.opt.num_paths // self.comp.pso_paths_block_size
-        reduce_pbest_local[(num_blocks,)](
+        reduce_pbest_local[(self._num_reduction_blocks,)](
             pbest_payoffs_ptr=self.pbest_payoff, pbest_positions_ptr=self.pbest_pos,
-            scratch_payoffs_ptr=scratch_payoffs, scratch_particle_idx_ptr=scratch_particle_idx,
+            scratch_payoffs_ptr=self._scratch_payoffs, scratch_particle_idx_ptr=self._scratch_particle_idx,
             partial_payoffs_ptr=self._partial_payoffs, positions_ptr=self.positions,
-            NUM_PARTICLES=tl.constexpr(self.num_particles), NUM_BLOCKS=tl.constexpr(num_blocks),
+            NUM_PARTICLES=tl.constexpr(self.num_particles), NUM_BLOCKS=tl.constexpr(self._num_reduction_blocks),
             NUM_DIMENSIONS=tl.constexpr(self.num_dimensions),
             BLOCK_SIZE=tl.constexpr(self.comp.reduction_block_size),
             NUM_PATH_BLOCKS=tl.constexpr(actual_num_path_blocks),
             NUM_PATHS=tl.constexpr(self.opt.num_paths),
         )
         reduce_pbest_global[(1,)](
-            scratch_payoffs_ptr=scratch_payoffs, scratch_particle_idx_ptr=scratch_particle_idx,
+            scratch_payoffs_ptr=self._scratch_payoffs, scratch_particle_idx_ptr=self._scratch_particle_idx,
             pbest_positions_ptr=self.pbest_pos,
             gbest_payoff_ptr=self.gbest_payoff, gbest_position_ptr=self.gbest_pos,
             NUM_PARTICLES=tl.constexpr(self.num_particles),
-            NUM_BLOCKS=tl.constexpr(num_blocks), NUM_DIMENSIONS=tl.constexpr(self.num_dimensions),
-            BLOCK_SIZE=triton.next_power_of_2(num_blocks),
+            NUM_BLOCKS=tl.constexpr(self._num_reduction_blocks), NUM_DIMENSIONS=tl.constexpr(self.num_dimensions),
+            BLOCK_SIZE=triton.next_power_of_2(self._num_reduction_blocks),
         )
 
     def _is_converged(self):

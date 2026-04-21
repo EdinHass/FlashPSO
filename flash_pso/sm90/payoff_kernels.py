@@ -76,7 +76,7 @@ def process_dim_block_bandwidth_vanilla(
 @triton.jit
 def mc_payoff_kernel(
     ln_positions_ptr, st_ptr, partial_payoffs_ptr,
-    S0, r, sigma, dt, seed, mc_offset_philox,
+    seed, mc_offset_philox, log2_S0, drift_l2, vol_l2, r_dt_l2, terminal_discount,
     NUM_DIMENSIONS: tl.constexpr, NUM_PARTICLES: tl.constexpr, NUM_PATHS: tl.constexpr,
     NUM_COMPUTE_PATH_BLOCKS: tl.constexpr,
     BLOCK_SIZE_PARTICLES: tl.constexpr, BLOCK_SIZE_PATHS: tl.constexpr, BLOCK_SIZE_DIM: tl.constexpr,
@@ -111,10 +111,7 @@ def mc_payoff_kernel(
         ex_lnS = tl.zeros([BLOCK_SIZE_PATHS, BLOCK_SIZE_PARTICLES], dtype=tl.float32)
         ex_step = tl.full([BLOCK_SIZE_PATHS, BLOCK_SIZE_PARTICLES], -1, dtype=tl.int32)
 
-    LOG2E = 1.4426950408889634
-    drift_l2 = (r - 0.5 * sigma * sigma) * dt * LOG2E
-    vol_l2 = sigma * tl.sqrt(dt) * LOG2E
-    current_lnS = tl.full([BLOCK_SIZE_PATHS], tl.log(S0) * LOG2E, dtype=tl.float32)
+    current_lnS = tl.full([BLOCK_SIZE_PATHS], log2_S0, dtype=tl.float32)
     if USE_ANTITHETIC:
         antithetic_path_idx = (path_block_idx * BLOCK_SIZE_PATHS + tl.arange(0, BLOCK_SIZE_PATHS // 2)).to(tl.int64)
         base_rng_offsets = mc_offset_philox + antithetic_path_idx * NUM_DIMENSIONS
@@ -147,8 +144,6 @@ def mc_payoff_kernel(
                 seed, base_rng_offsets, drift_l2, vol_l2,
                 BLOCK_SIZE_DIM, BLOCK_SIZE_PATHS, BLOCK_SIZE_PARTICLES, OPTION_TYPE, USE_ANTITHETIC)
 
-    r_dt_l2 = -r * dt * LOG2E
-    terminal_discount = tl.exp2(r_dt_l2 * NUM_DIMENSIONS)
     ex_disc_acc = tl.exp2((ex_step.to(tl.float32) + 1.0) * r_dt_l2)
     if BLOCK_SIZE_PARTICLES == 1:
         final_lnS = tl.where(is_exercised, ex_lnS, current_lnS)
@@ -244,7 +239,7 @@ def process_dim_block_bandwidth_asian(
 @triton.jit
 def mc_asian_payoff_kernel(
     ln_positions_ptr, st_ptr, partial_payoffs_ptr,
-    S0, r, sigma, dt, seed, mc_offset_philox,
+    seed, mc_offset_philox, log2_S0, drift_l2, vol_l2, r_dt_l2, terminal_discount,
     NUM_DIMENSIONS: tl.constexpr, NUM_PARTICLES: tl.constexpr, NUM_PATHS: tl.constexpr,
     NUM_COMPUTE_PATH_BLOCKS: tl.constexpr,
     BLOCK_SIZE_PARTICLES: tl.constexpr, BLOCK_SIZE_PATHS: tl.constexpr, BLOCK_SIZE_DIM: tl.constexpr,
@@ -267,7 +262,6 @@ def mc_asian_payoff_kernel(
     else:
         ln_pos_desc = _make_dummy_tensor_descriptor(ln_positions_ptr)
 
-    # path block always > 4
     st_desc = tl.make_tensor_descriptor(base=st_ptr, shape=[NUM_DIMENSIONS, NUM_BW_PATHS], strides=[NUM_BW_PATHS, 1], block_shape=[1, BLOCK_SIZE_PATHS])
 
     payoff_accum = tl.zeros([BLOCK_SIZE_PARTICLES], dtype=tl.float32)
@@ -280,10 +274,7 @@ def mc_asian_payoff_kernel(
         ex_avg = tl.zeros([BLOCK_SIZE_PATHS, BLOCK_SIZE_PARTICLES], dtype=tl.float32)
         ex_step = tl.full([BLOCK_SIZE_PATHS, BLOCK_SIZE_PARTICLES], -1, dtype=tl.int32)
 
-    LOG2E = 1.4426950408889634
-    drift_l2 = (r - 0.5 * sigma * sigma) * dt * LOG2E
-    vol_l2 = sigma * tl.sqrt(dt) * LOG2E
-    current_lnS = tl.full([BLOCK_SIZE_PATHS], tl.log(S0) * LOG2E, dtype=tl.float32)
+    current_lnS = tl.full([BLOCK_SIZE_PATHS], log2_S0, dtype=tl.float32)
     running_sum = tl.zeros([BLOCK_SIZE_PATHS], dtype=tl.float32)
     if USE_ANTITHETIC:
         antithetic_path_idx = (path_block_idx * BLOCK_SIZE_PATHS + tl.arange(0, BLOCK_SIZE_PATHS // 2)).to(tl.int64)
@@ -318,8 +309,6 @@ def mc_asian_payoff_kernel(
                 BLOCK_SIZE_DIM, BLOCK_SIZE_PATHS, BLOCK_SIZE_PARTICLES, OPTION_TYPE, USE_ANTITHETIC)
 
     terminal_avg = running_sum / NUM_DIMENSIONS
-    r_dt_l2 = -r * dt * LOG2E
-    terminal_discount = tl.exp2(r_dt_l2 * NUM_DIMENSIONS)
     ex_disc_acc = tl.exp2((ex_step.to(tl.float32) + 1.0) * r_dt_l2)
     if BLOCK_SIZE_PARTICLES == 1:
         final_avg = tl.where(is_exercised, ex_avg, terminal_avg)
@@ -476,8 +465,8 @@ def process_dim_block_bandwidth_basket(
 @triton.jit
 def mc_basket_payoff_kernel(
     ln_positions_ptr, st_ptr, partial_payoffs_ptr,
-    S0_ptr, drift_ptr, vol_ptr, weights_ptr, L_ptr,
-    r, dt, seed, mc_offset_philox,
+    log2_S0_ptr, drift_ptr, vol_ptr, weights_ptr, L_ptr,
+    r_dt_l2, terminal_discount, seed, mc_offset_philox,
     NUM_DIMENSIONS: tl.constexpr, NUM_PARTICLES: tl.constexpr, NUM_PATHS: tl.constexpr,
     NUM_COMPUTE_PATH_BLOCKS: tl.constexpr,
     BLOCK_SIZE_PARTICLES: tl.constexpr, BLOCK_SIZE_PATHS: tl.constexpr, BLOCK_SIZE_DIM: tl.constexpr,
@@ -514,13 +503,12 @@ def mc_basket_payoff_kernel(
     st_scalar_desc = tl.make_tensor_descriptor(base=st_ptr, shape=[NUM_DIMENSIONS, NUM_BW_PATHS], strides=[NUM_BW_PATHS, 1], block_shape=[1, BLOCK_SIZE_PATHS])
     st_perasset_desc = tl.make_tensor_descriptor(base=st_ptr, shape=[NUM_DIMENSIONS * NUM_ASSETS, NUM_BW_PATHS], strides=[NUM_BW_PATHS, 1], block_shape=[NUM_ASSETS, BLOCK_SIZE_PATHS])
 
-    S0 = tl.load(S0_ptr + asset_idx)
+    log2_S0 = tl.load(log2_S0_ptr + asset_idx)
     drift = tl.load(drift_ptr + asset_idx)
     vol = tl.load(vol_ptr + asset_idx)
     weights = tl.load(weights_ptr + asset_idx)
     
-    LOG2E = 1.4426950408889634
-    current_lnS = tl.broadcast_to(tl.log(S0[:, None]) * LOG2E, [NUM_ASSETS, BLOCK_SIZE_PATHS])
+    current_lnS = tl.broadcast_to(log2_S0[:, None], [NUM_ASSETS, BLOCK_SIZE_PATHS])
     drift_exp = drift[:, None]; vol_exp = vol[:, None]; weights_exp = weights[:, None]
 
     payoff_accum = tl.zeros([BLOCK_SIZE_PARTICLES], dtype=tl.float32)
@@ -580,8 +568,6 @@ def mc_basket_payoff_kernel(
     basket_S_terminal = tl.sum(masked_terminal_S * weights_exp, axis=0)
     terminal_S_acc = basket_S_terminal
     
-    r_dt_l2 = -r * dt * LOG2E
-    terminal_discount = tl.exp2(r_dt_l2 * NUM_DIMENSIONS)
     ex_disc_acc = tl.exp2((ex_step.to(tl.float32) + 1.0) * r_dt_l2)
     
     if BLOCK_SIZE_PARTICLES == 1:
