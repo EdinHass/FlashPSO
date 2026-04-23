@@ -73,7 +73,7 @@ class BasketOptionConfig:
 class ComputeConfig:
     seed: int
     compute_fraction: float = 1.0
-    pso_paths_block_size: int = 256
+    pso_paths_block_size: int = 64
     elementwise_block_size: int = 256
     reduction_block_size: int = 32
     max_iterations: int = 1000
@@ -107,9 +107,9 @@ def get_autotune_configs():
     dim_blocks      = [1, 4]
     warps           = [4, 8, 16]
     stages          = [1, 2]
-    loop_unroll_l   = [1]
-    loop_stages_l   = [1]
-    warp_spec_l     = [False]
+    loop_unroll_l   = [1, 2]
+    loop_stages_l   = [1, 2]
+    warp_spec_l     = [False, True]
     flatten_l       = [True]
 
     for pt, d, w, s, ls, lu, ws, fl in itertools.product(

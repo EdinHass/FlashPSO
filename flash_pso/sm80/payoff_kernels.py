@@ -587,10 +587,7 @@ def mc_basket_payoff_kernel(
                 OPTION_TYPE, USE_ANTITHETIC, EXERCISE_STYLE, USE_FP16
             )
 
-    S_matrix_terminal = tl.exp2(current_lnS)
-    masked_terminal_S = S_matrix_terminal
-    basket_S_terminal = tl.sum(masked_terminal_S * weights_exp, axis=0)
-    terminal_S_acc = basket_S_terminal
+    terminal_S_acc = tl.sum(tl.exp2(current_lnS) * weights_exp, axis=0)
     
     ex_disc_acc = tl.exp2((ex_step_acc.to(tl.float32) + 1.0) * r_dt_l2)
     

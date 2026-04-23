@@ -140,7 +140,7 @@ def run_flash_pso(problem: Union[OptionConfig, BasketOptionConfig], compute: Com
     # For Basket options, the "price" is the debiased price after optimization; for vanilla options, it's the direct option price.
     # We use this because basket options are more likely to overfit to the noise, so the debiased price is a more meaningful metric 
     # of the optimization quality.
-    price = pricer.get_debiased_price() if isinstance(problem, BasketOptionConfig) else pricer.get_option_price()
+    price = pricer.get_debiased_price()
     actual_iters = pricer.global_payoff_index * comp.sync_iters
     
     return price, init_ms, exec_ms, actual_iters

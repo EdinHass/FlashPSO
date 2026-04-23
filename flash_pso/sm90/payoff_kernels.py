@@ -87,7 +87,9 @@ def mc_payoff_kernel(
     tl.assume(NUM_DIMENSIONS % BLOCK_SIZE_DIM == 0)
     GROUP_SIZE_M = 64
     pid_m, pid_n = tl.swizzle2d(tl.program_id(0), tl.program_id(1), tl.num_programs(0), tl.num_programs(1), GROUP_SIZE_M)
-    pid = pid_m; path_block_idx = pid_n
+    path_block_idx = pid_m
+    pid = pid_n
+
     NUM_BW_PATHS = NUM_PATHS - NUM_COMPUTE_PATH_BLOCKS * BLOCK_SIZE_PATHS
     is_compute = path_block_idx < NUM_COMPUTE_PATH_BLOCKS
     particle_idx = tl.max_contiguous(tl.multiple_of(pid * BLOCK_SIZE_PARTICLES + tl.arange(0, BLOCK_SIZE_PARTICLES), BLOCK_SIZE_PARTICLES), BLOCK_SIZE_PARTICLES)
@@ -563,10 +565,7 @@ def mc_basket_payoff_kernel(
                 OPTION_TYPE, USE_ANTITHETIC, EXERCISE_STYLE, USE_FP16
             )
 
-    S_matrix_terminal = tl.exp2(current_lnS)
-    masked_terminal_S = S_matrix_terminal
-    basket_S_terminal = tl.sum(masked_terminal_S * weights_exp, axis=0)
-    terminal_S_acc = basket_S_terminal
+    terminal_S_acc = tl.sum(tl.exp2(current_lnS) * weights_exp, axis=0)
     
     ex_disc_acc = tl.exp2((ex_step.to(tl.float32) + 1.0) * r_dt_l2)
     

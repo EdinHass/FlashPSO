@@ -272,8 +272,8 @@ class FlashPSOBasket:
             )
 
         grid_mc = lambda meta: (
-            triton.cdiv(self.num_particles, meta["BLOCK_SIZE_PARTICLES"]),
             self.opt.num_paths // self.comp.pso_paths_block_size,
+            triton.cdiv(self.num_particles, meta["BLOCK_SIZE_PARTICLES"]),
         )
         mc_basket_payoff_kernel[grid_mc](
             ln_positions_ptr=self.ln_positions, st_ptr=self.St,
