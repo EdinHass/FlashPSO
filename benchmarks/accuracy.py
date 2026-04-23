@@ -96,7 +96,7 @@ def exec_variance_benchmark():
                 sync_iters=5, 
                 seed=1000 + i,                  
                 use_antithetic=use_anti, 
-                convergence_threshold=-1.0      
+                convergence_threshold=1e-6      
             )
             
             swarm = SwarmConfig(num_particles=PARTICLES)

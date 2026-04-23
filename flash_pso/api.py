@@ -256,8 +256,8 @@ class FlashPSO:
             )
 
         grid_mc = lambda meta: (
-            triton.cdiv(self.num_particles, meta["BLOCK_SIZE_PARTICLES"]),
             self.opt.num_paths // self.comp.pso_paths_block_size,
+            triton.cdiv(self.num_particles, meta["BLOCK_SIZE_PARTICLES"]),
         )
         kernel = mc_asian_payoff_kernel if self.opt.option_style == OptionStyle.ASIAN else mc_payoff_kernel
         kernel[grid_mc](

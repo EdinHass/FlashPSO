@@ -8,7 +8,7 @@ from flash_pso.config import OptionConfig, BasketOptionConfig, ComputeConfig, Sw
 from flash_pso.enums import OptionStyle, OptionType
 from .models import Method
 
-# ─── EXTERNAL DEPENDENCIES ────────────────────────────────────────────────────
+# external dependencies
 try:
     from references.mc import hybridMonteCarlo
     from references.pso import PSO_OpenCL_vec_fusion
@@ -30,9 +30,7 @@ except ImportError:
     HAS_QUANTLIB = False
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# ── QUANTLIB & NATIVE UTILS ───────────────────────────────────────────────────
-# ══════════════════════════════════════════════════════════════════════════════
+# utils
 
 def _get_ql_process(s0: float, r_rate: float, vol: float):
     today = ql.Date().todaysDate()
@@ -108,44 +106,41 @@ def _quantlib_basket_lsmc_price(s0s: list, k: float, r_rate: float, vols: list, 
     return basket_option.NPV()
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# ── HARDWARE-TIMED EXECUTION WRAPPERS ─────────────────────────────────────────
-# ══════════════════════════════════════════════════════════════════════════════
+
+# execution wrappers
 
 def run_flash_pso(problem: Union[OptionConfig, BasketOptionConfig], compute: ComputeConfig, swarm: SwarmConfig, seed: int):
     comp = ComputeConfig(**{**compute.__dict__, "seed": seed})
-    
-    # 1. Resolve branches BEFORE hardware timing begins
     PricerClass = FlashPSOBasket if isinstance(problem, BasketOptionConfig) else FlashPSO
     
-    # 2. Create GPU timing events
-    start_init = torch.cuda.Event(enable_timing=True)
-    end_init = torch.cuda.Event(enable_timing=True)
-    start_exec = torch.cuda.Event(enable_timing=True)
-    end_exec = torch.cuda.Event(enable_timing=True)
+    # preallocate CUDA events for timing
+    s_init, e_init = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+    s_exec, e_exec = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
     
-    # 3. Flush pipeline to ensure clean start
     torch.cuda.synchronize()
     
-    # --- PHASE 1: Initialization ---
-    start_init.record()
+    # init
+    s_init.record()
     pricer = PricerClass(problem, comp, swarm)
-    end_init.record()
+    e_init.record()
     
-    torch.cuda.synchronize() # Barrier between phases
+    torch.cuda.synchronize() 
     
-    # --- PHASE 2: Execution ---
-    start_exec.record()
+    # execute
+    s_exec.record()
     pricer.optimize()
-    end_exec.record()
+    e_exec.record()
     
-    # 4. Wait for GPU to finish before calculating elapsed time
     torch.cuda.synchronize()
     
-    init_ms = start_init.elapsed_time(end_init)
-    exec_ms = start_exec.elapsed_time(end_exec)
+    # compute timings and results
+    init_ms = s_init.elapsed_time(e_init)
+    exec_ms = s_exec.elapsed_time(e_exec)
     
-    price = pricer.get_debiased_price()
+    # For Basket options, the "price" is the debiased price after optimization; for vanilla options, it's the direct option price.
+    # We use this because basket options are more likely to overfit to the noise, so the debiased price is a more meaningful metric 
+    # of the optimization quality.
+    price = pricer.get_debiased_price() if isinstance(problem, BasketOptionConfig) else pricer.get_option_price()
     actual_iters = pricer.global_payoff_index * comp.sync_iters
     
     return price, init_ms, exec_ms, actual_iters
@@ -159,7 +154,7 @@ def run_opencl_pso(problem: Union[OptionConfig, BasketOptionConfig], compute: Co
     hybridMonteCarlo.setSeed(seed)
     opt_str = 'P' if problem.option_type == OptionType.PUT else 'C'
     
-    # Python overhead is unavoidable here, but we tighten the bounds as much as possible
+    # Phase 1: Init
     t0 = time.perf_counter()
     mc = hybridMonteCarlo(
         problem.initial_stock_price, problem.risk_free_rate, problem.volatility, 
@@ -167,16 +162,16 @@ def run_opencl_pso(problem: Union[OptionConfig, BasketOptionConfig], compute: Co
         problem.strike_price, opt_str, swarm.num_particles
     )
     solver = PSO_OpenCL_vec_fusion(mc, swarm.num_particles, iterMax=compute.max_iterations)
-    
-    # Inject stopping criteria to match FlashPSO
     solver._criteria = compute.convergence_threshold
     t1 = time.perf_counter()
     
+    # Phase 2: Exec
+    t2 = time.perf_counter()
     res = solver.solvePsoAmerOption_cl()
     mc.cleanUp()
-    t2 = time.perf_counter()
+    t3 = time.perf_counter()
     
-    return res[0], (t1 - t0) * 1000, (t2 - t1) * 1000, len(res[2])
+    return res[0], (t1 - t0) * 1000, (t3 - t2) * 1000, len(res[2])
 
 
 def run_opencl_lsmc(problem: Union[OptionConfig, BasketOptionConfig], compute: ComputeConfig, swarm: SwarmConfig, seed: int):
@@ -196,11 +191,12 @@ def run_opencl_lsmc(problem: Union[OptionConfig, BasketOptionConfig], compute: C
     solver = LSMC_OpenCL(mc, inverseType='GJ')
     t1 = time.perf_counter()
     
+    t2 = time.perf_counter()
     price = solver.longstaff_schwartz_itm_path_fast_hybrid()[0]
     mc.cleanUp()
-    t2 = time.perf_counter()
+    t3 = time.perf_counter()
     
-    return price, (t1 - t0) * 1000, (t2 - t1) * 1000, 1
+    return price, (t1 - t0) * 1000, (t3 - t2) * 1000, 1
 
 
 def run_quantlib(problem: Union[OptionConfig, BasketOptionConfig], compute: ComputeConfig, swarm: SwarmConfig, seed: int):
@@ -247,8 +243,87 @@ def run_native_binomial(problem: Union[OptionConfig, BasketOptionConfig], comput
     return price, 0, (t1 - t0) * 1000, 1
 
 
+# wrapper for CPU ablation study: move path gen and reduction back to CPU, keep velocity updates and payoff eval on GPU
+
+class FlashPSOCPUReduction(FlashPSO):
+    """FlashPSO with path generation and pbest/gbest reduction on CPU.
+
+    Isolates the two operations that were moved from CPU to GPU in FlashPSO:
+      - _precompute_mc_paths: GBM path generation (numpy, then H2D copy)
+      - _reduce_pbest:        payoff aggregation and best-particle selection
+
+    PSO velocity updates and payoff evaluation remain on GPU.
+    """
+
+    def _precompute_mc_paths(self):
+        T = self.opt.num_time_steps
+        N = self._num_bw_paths
+        rng = np.random.default_rng(self.comp.seed)
+        drift = np.float32(self.drift_l2)
+        vol = np.float32(self.vol_l2)
+        lnS = np.full(N, self.log2_S0, dtype=np.float32)
+        # Fill [T, N] array matching the kernel's expected storage layout:
+        # st_ptr + step * NUM_BW_PATHS + path_idx
+        St_cpu = np.empty((T, N), dtype=np.float32)
+        for t in range(T):
+            Z = rng.standard_normal(N).astype(np.float32)
+            lnS += drift + vol * Z
+            St_cpu[t] = lnS
+        # self.St is [N, T] logically but [T, N] in storage; .t() is the contiguous [T, N] view
+        self.St.t().copy_(torch.from_numpy(St_cpu))
+
+    def _reduce_pbest(self):
+        partial_payoffs_cpu = self._partial_payoffs.cpu()
+        positions_cpu = self.positions.cpu()
+
+        total_path_blocks = self.opt.num_paths // self.comp.pso_paths_block_size
+        payoffs_cpu = partial_payoffs_cpu[:total_path_blocks].sum(dim=0) / self.opt.num_paths
+
+        pbest_payoff_cpu = self.pbest_payoff.cpu()
+        pbest_pos_cpu = self.pbest_pos.cpu()
+
+        improved = payoffs_cpu > pbest_payoff_cpu
+        pbest_payoff_cpu[improved] = payoffs_cpu[improved]
+        pbest_pos_cpu[improved] = positions_cpu[improved]
+
+        best_idx = torch.argmax(pbest_payoff_cpu)
+        if pbest_payoff_cpu[best_idx] > self.gbest_payoff.item():
+            self.gbest_payoff.fill_(pbest_payoff_cpu[best_idx].item())
+            self.gbest_pos.copy_(pbest_pos_cpu[best_idx].to("cuda"))
+
+        self.pbest_payoff.copy_(pbest_payoff_cpu.to("cuda"))
+        self.pbest_pos.copy_(pbest_pos_cpu.to("cuda"))
+
+
+def run_flash_pso_cpu_ablation(problem: Union[OptionConfig, BasketOptionConfig], compute: ComputeConfig, swarm: SwarmConfig, seed: int):
+    if isinstance(problem, BasketOptionConfig):
+        return float('nan'), 0, 0, 0
+    comp = ComputeConfig(**{**compute.__dict__, "seed": seed})
+
+    # Use perf_counter + explicit syncs since CUDA events miss CPU-side numpy computation
+    torch.cuda.synchronize()
+    t_init_0 = time.perf_counter()
+    pricer = FlashPSOCPUReduction(problem, comp, swarm)
+    torch.cuda.synchronize()
+    t_init_1 = time.perf_counter()
+
+    torch.cuda.synchronize()
+    t_exec_0 = time.perf_counter()
+    pricer.optimize()
+    torch.cuda.synchronize()
+    t_exec_1 = time.perf_counter()
+
+    return (
+        pricer.get_option_price(),
+        (t_init_1 - t_init_0) * 1000,
+        (t_exec_1 - t_exec_0) * 1000,
+        pricer.global_payoff_index * comp.sync_iters,
+    )
+
+
 WRAPPER_REGISTRY = {
     Method.FLASH_PSO: run_flash_pso,
+    Method.FLASH_PSO_CPU: run_flash_pso_cpu_ablation,
     Method.OPENCL_PSO: run_opencl_pso,
     Method.OPENCL_LSMC: run_opencl_lsmc,
     Method.QUANTLIB: run_quantlib,

@@ -7,6 +7,7 @@ class Method(Enum):
     OPENCL_LSMC = auto()
     QUANTLIB = auto()
     NATIVE_BINOMIAL = auto()
+    FLASH_PSO_CPU = auto()
 
 @dataclass
 class BenchmarkResult:

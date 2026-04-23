@@ -83,6 +83,7 @@ class ComputeConfig:
     use_antithetic: bool = False
     use_fp16_cholesky: bool = False
     rng_type: RNGType = RNGType.PHILOX
+    randomize_paths: bool = False
     debug: bool = False
  
     @property
@@ -106,7 +107,7 @@ def get_autotune_configs():
     dim_blocks      = [1, 4]
     warps           = [4, 8, 16]
     stages          = [1, 2]
-    loop_unroll_l   = [8]
+    loop_unroll_l   = [1]
     loop_stages_l   = [1]
     warp_spec_l     = [False]
     flatten_l       = [True]

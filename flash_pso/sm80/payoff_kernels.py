@@ -92,7 +92,7 @@ def mc_payoff_kernel(
 
     GROUP_SIZE_M = 64
     pid_m, pid_n = tl.swizzle2d(tl.program_id(0), tl.program_id(1), tl.num_programs(0), tl.num_programs(1), GROUP_SIZE_M)
-    pid = pid_m; path_block_idx = pid_n
+    path_block_idx = pid_m; pid = pid_n
 
     NUM_BW_PATHS = NUM_PATHS - NUM_COMPUTE_PATH_BLOCKS * BLOCK_SIZE_PATHS
     is_compute = path_block_idx < NUM_COMPUTE_PATH_BLOCKS
@@ -264,7 +264,7 @@ def mc_asian_payoff_kernel(
 
     GROUP_SIZE_M = 64
     pid_m, pid_n = tl.swizzle2d(tl.program_id(0), tl.program_id(1), tl.num_programs(0), tl.num_programs(1), GROUP_SIZE_M)
-    pid = pid_m; path_block_idx = pid_n
+    path_block_idx = pid_m; pid = pid_n
 
     NUM_BW_PATHS = NUM_PATHS - NUM_COMPUTE_PATH_BLOCKS * BLOCK_SIZE_PATHS
     is_compute = path_block_idx < NUM_COMPUTE_PATH_BLOCKS
@@ -513,7 +513,7 @@ def mc_basket_payoff_kernel(
     tl.assume(NUM_DIMENSIONS % BLOCK_SIZE_DIM == 0)
     GROUP_SIZE_M = 64
     pid_m, pid_n = tl.swizzle2d(tl.program_id(0), tl.program_id(1), tl.num_programs(0), tl.num_programs(1), GROUP_SIZE_M)
-    pid = pid_m; path_block_idx = pid_n
+    path_block_idx = pid_m; pid = pid_n
     
     NUM_BW_PATHS = NUM_PATHS - NUM_COMPUTE_PATH_BLOCKS * BLOCK_SIZE_PATHS
     is_compute = path_block_idx < NUM_COMPUTE_PATH_BLOCKS

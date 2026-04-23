@@ -28,7 +28,6 @@ class ReferenceCache:
         
         if isinstance(problem, BasketOptionConfig):
             opt_str = 'P' if problem.option_type == OptionType.PUT else 'C'
-            
             price = _quantlib_basket_lsmc_price(
                 s0s=problem.initial_stock_prices, k=problem.strike_price, r_rate=problem.risk_free_rate,
                 vols=problem.volatilities, weights=problem.weights, corr=problem.correlation_matrix,
@@ -65,10 +64,9 @@ class Benchmark:
         self.runs = runs if method not in [Method.QUANTLIB, Method.NATIVE_BINOMIAL] else 1
 
     def warmup(self):
-        """Runs the kernel multiple times with strict syncs to trigger Triton JIT and stabilize the PyTorch allocator."""
-        if self.method == Method.FLASH_PSO:
+        if self.method in (Method.FLASH_PSO, Method.FLASH_PSO_CPU):
             wrapper = WRAPPER_REGISTRY[self.method]
-            for _ in range(3):
+            for _ in range(5):
                 wrapper(self.problem, self.compute, self.swarm, seed=999)
             if torch.cuda.is_available():
                 torch.cuda.synchronize()
@@ -79,19 +77,23 @@ class Benchmark:
         
         ref_price = ReferenceCache.get(self.problem)
         wrapper = WRAPPER_REGISTRY.get(self.method)
-        
-        if not wrapper:
-            raise NotImplementedError(f"No wrapper registered for {self.method}")
-        
+        is_gpu = (self.method in (Method.FLASH_PSO, Method.FLASH_PSO_CPU) and torch.cuda.is_available())
+
+        self.warmup()  # Ensure warmup before timing
+
         for i in range(self.runs):
-            # The Wall Clock captures EVERYTHING (dispatch overhead, GIL wait, queueing)
+            if is_gpu:
+                torch.cuda.empty_cache()
+                torch.cuda.synchronize()
+            
             wt0 = time.perf_counter()
             
-            # wrapper returns init_ms and exec_ms accurately profiled on the Hardware GPU clock
-            price, init_ms, exec_ms, actual_iters = wrapper(self.problem, self.compute, self.swarm, seed=1000 + i)
+            price, init_ms, exec_ms, actual_iters = wrapper(
+                self.problem, self.compute, self.swarm, seed=1000 + i
+            )
             
-            if torch.cuda.is_available():
-                torch.cuda.synchronize()
+            if is_gpu: torch.cuda.synchronize()
+            
             wt1 = time.perf_counter()
             
             prices[i] = price
@@ -135,9 +137,9 @@ class BenchmarkSuite:
         console = Console()
         console.print(f"\n[bold cyan]Starting Suite: {self.title}[/bold cyan]")
         
-        console.print("[dim]Warming up allocators and JIT compilers...[/dim]")
-        for b in self.benchmarks:
-            b.warmup()
+        # console.print("[dim]Warming up allocators and JIT compilers...[/dim]")
+        # for b in self.benchmarks:
+        #    b.warmup()
 
         with Progress(
             SpinnerColumn(),
@@ -156,40 +158,25 @@ class BenchmarkSuite:
                 progress.advance(overall_task)
 
     def save_csv(self) -> str:
-        """Saves the benchmark results to a CSV file."""
         os.makedirs(self.output_dir, exist_ok=True)
-        
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_title = self.title.replace(" ", "_").replace("/", "-").lower()
         filepath = os.path.join(self.output_dir, f"{safe_title}_{timestamp}.csv")
         
         with open(filepath, mode='w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            
-            # Write Header
             writer.writerow([
                 "Method", "Mean Price", "Bias", "Std Dev", "Std Err", 
                 "RMSE", "Mean Iters", "Init Time (ms)", "Iter Time (ms)", "Wall Time (s)"
             ])
-            
-            # Write Rows
             for r in self.results:
                 iters_str = f"{r.mean_iters:.1f}" if r.method not in [Method.QUANTLIB, Method.NATIVE_BINOMIAL, Method.OPENCL_LSMC] else "N/A"
-                iter_time_str = f"{r.mean_iter_time_ms:.4f}" if r.method not in [Method.OPENCL_LSMC, Method.QUANTLIB, Method.NATIVE_BINOMIAL] else f"{r.mean_iter_time_ms:.2f}"
-                
+                iter_time_str = f"{r.mean_iter_time_ms:.4f}"
                 writer.writerow([
-                    r.name,
-                    f"{r.mean_price:.6f}",
-                    f"{r.bias:+.6f}",
-                    f"{r.std_dev:.6f}",
-                    f"{r.std_error:.6f}",
-                    f"{r.rmse:.6f}",
-                    iters_str,
-                    f"{r.mean_init_time_ms:.2f}",
-                    iter_time_str,
-                    f"{r.mean_wall_time_s:.4f}"
+                    r.name, f"{r.mean_price:.6f}", f"{r.bias:+.6f}", f"{r.std_dev:.6f}",
+                    f"{r.std_error:.6f}", f"{r.rmse:.6f}", iters_str,
+                    f"{r.mean_init_time_ms:.2f}", iter_time_str, f"{r.mean_wall_time_s:.4f}"
                 ])
-                
         return filepath
 
     def report(self):
@@ -200,7 +187,6 @@ class BenchmarkSuite:
         table.add_column("Mean Price", justify="right")
         table.add_column("Bias", justify="right")
         table.add_column("Std Dev", justify="right")
-        table.add_column("Std Err", justify="right")
         table.add_column("RMSE", justify="right")
         table.add_column("Iters", justify="right", style="blue")
         table.add_column("Init (ms)", justify="right", style="yellow")
@@ -209,22 +195,12 @@ class BenchmarkSuite:
 
         for r in self.results:
             iters_str = f"{r.mean_iters:.1f}" if r.method not in [Method.QUANTLIB, Method.NATIVE_BINOMIAL, Method.OPENCL_LSMC] else "-"
-            
             table.add_row(
-                r.name,
-                f"{r.mean_price:.6f}",
-                f"{r.bias:+.6f}",
-                f"{r.std_dev:.6f}",
-                f"{r.std_error:.6f}",
-                f"{r.rmse:.6f}",
-                iters_str,
-                f"{r.mean_init_time_ms:.2f}",
-                f"{r.mean_iter_time_ms:.4f}" if r.method not in [Method.OPENCL_LSMC, Method.QUANTLIB, Method.NATIVE_BINOMIAL] else f"{r.mean_iter_time_ms:.2f}*",
-                f"{r.mean_wall_time_s:.4f}"
+                r.name, f"{r.mean_price:.6f}", f"{r.bias:+.6f}", f"{r.std_dev:.6f}",
+                f"{r.rmse:.6f}", iters_str, f"{r.mean_init_time_ms:.2f}",
+                f"{r.mean_iter_time_ms:.4f}", f"{r.mean_wall_time_s:.4f}"
             )
             
         console.print(table)
-        
-        # Save to CSV and notify user
         csv_path = self.save_csv()
         console.print(f"\n[bold green]✔[/bold green] Results saved to: [dim]{csv_path}[/dim]")
