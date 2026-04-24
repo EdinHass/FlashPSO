@@ -51,7 +51,7 @@ def process_dim_block_bandwidth_vanilla(
 ):
     for d in tl.static_range(BLOCK_SIZE_DIM):
         step_idx = dim_offset + d
-        current_lnS = tl.reshape(tl.load_tensor_descriptor(st_desc, [step_idx, bw_block_idx * BLOCK_SIZE_PATHS]), [BLOCK_SIZE_PATHS])
+        current_lnS = tl.reshape(tl.load_tensor_descriptor(st_desc, [step_idx, bw_block_idx * BLOCK_SIZE_PATHS]), [BLOCK_SIZE_PATHS]).to(tl.float32)
 
         if BLOCK_SIZE_PARTICLES == 1:
             ln_pos = tl.load(ln_positions_ptr + step_idx * NUM_PARTICLES + particle_idx)
@@ -72,7 +72,7 @@ def process_dim_block_bandwidth_vanilla(
 
 @triton.autotune(configs=get_autotune_configs(),
                  key=["NUM_PARTICLES", "NUM_PATHS", "NUM_DIMENSIONS", "NUM_COMPUTE_PATH_BLOCKS"],
-                 warmup=2, rep=3)
+                 warmup=3, rep=5)
 @triton.jit
 def mc_payoff_kernel(
     ln_positions_ptr, st_ptr, partial_payoffs_ptr,
@@ -211,7 +211,7 @@ def process_dim_block_bandwidth_asian(
 ):
     for d in tl.static_range(BLOCK_SIZE_DIM):
         step_idx = dim_offset + d
-        current_lnS = tl.reshape(tl.load_tensor_descriptor(st_desc, [step_idx, bw_block_idx * BLOCK_SIZE_PATHS]), [BLOCK_SIZE_PATHS])
+        current_lnS = tl.reshape(tl.load_tensor_descriptor(st_desc, [step_idx, bw_block_idx * BLOCK_SIZE_PATHS]), [BLOCK_SIZE_PATHS]).to(tl.float32)
         step_S = tl.exp2(current_lnS)
         running_sum = running_sum + step_S
         step_avg = running_sum / (step_idx + 1.0)
@@ -418,7 +418,7 @@ def process_dim_block_bandwidth_basket(
         step_idx = dim_offset + d
 
         if EXERCISE_STYLE == 0:
-            basket_lnS = tl.reshape(tl.load_tensor_descriptor(st_scalar_desc, [step_idx, bw_block_idx * BLOCK_SIZE_PATHS]), [BLOCK_SIZE_PATHS])
+            basket_lnS = tl.reshape(tl.load_tensor_descriptor(st_scalar_desc, [step_idx, bw_block_idx * BLOCK_SIZE_PATHS]), [BLOCK_SIZE_PATHS]).to(tl.float32)
             basket_S = tl.exp2(basket_lnS)
 
             if BLOCK_SIZE_PARTICLES == 1:
@@ -436,7 +436,7 @@ def process_dim_block_bandwidth_basket(
                 ex_step = tl.where(just_ex, step_idx, ex_step)
                 is_exercised = is_exercised | any_ex
         else:
-            current_lnS = tl.reshape(tl.load_tensor_descriptor(st_perasset_desc, [step_idx * NUM_ASSETS, bw_block_idx * BLOCK_SIZE_PATHS]), [NUM_ASSETS, BLOCK_SIZE_PATHS])
+            current_lnS = tl.reshape(tl.load_tensor_descriptor(st_perasset_desc, [step_idx * NUM_ASSETS, bw_block_idx * BLOCK_SIZE_PATHS]), [NUM_ASSETS, BLOCK_SIZE_PATHS]).to(tl.float32)
             S_matrix = tl.exp2(current_lnS)
             basket_S = tl.sum(S_matrix * weights_exp, axis=0)
 

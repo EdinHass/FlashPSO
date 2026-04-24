@@ -97,10 +97,10 @@ class FlashPSOBasket:
 
         if self._num_bw_paths > 0:
             if self.opt.exercise_style == ExerciseStyle.SCALAR:
-                self.St = torch.empty((self.mc_num_dimensions, self._num_bw_paths), device="cuda", dtype=torch.float32).t()
+                self.St = torch.empty((self.mc_num_dimensions, self._num_bw_paths), device="cuda", dtype=torch.float16 if self.comp.use_fp16_paths else torch.float32).t()
                 self._precompute_collapsed()
             else:
-                self.St = torch.empty((self.mc_num_dimensions, N, self._num_bw_paths), device="cuda", dtype=torch.float32)
+                self.St = torch.empty((self.mc_num_dimensions, N, self._num_bw_paths), device="cuda", dtype=torch.float16 if self.comp.use_fp16_paths else torch.float32)
                 self._precompute_per_asset()
         else:
             self.St = torch.empty((0,), device="cuda")
@@ -232,6 +232,7 @@ class FlashPSOBasket:
             USE_ANTITHETIC=tl.constexpr(self.comp.use_antithetic),
             USE_FP16=tl.constexpr(self.comp.use_fp16_cholesky),
             USE_PRECOMPUTED_Z=tl.constexpr(self.comp.rng_type == RNGType.SOBOL),
+            USE_FP16_PATHS=tl.constexpr(self.comp.use_fp16_paths),
         )
 
     def _precompute_per_asset(self):
@@ -250,6 +251,7 @@ class FlashPSOBasket:
             USE_ANTITHETIC=tl.constexpr(self.comp.use_antithetic),
             USE_FP16=tl.constexpr(self.comp.use_fp16_cholesky),
             USE_PRECOMPUTED_Z=tl.constexpr(self.comp.rng_type == RNGType.SOBOL),
+            USE_FP16_PATHS=tl.constexpr(self.comp.use_fp16_paths),
         )
 
     def _PSO_update(self, iteration: int, eval_only: bool = False):

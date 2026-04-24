@@ -236,6 +236,7 @@ class FlashPSO:
             NUM_TIME_STEPS=tl.constexpr(self.opt.num_time_steps),
             USE_ANTITHETIC=tl.constexpr(self.comp.use_antithetic),
             USE_PRECOMPUTED_Z=tl.constexpr(self.comp.rng_type == RNGType.SOBOL),
+            USE_FP16_PATHS=tl.constexpr(self.comp.use_fp16_paths),
         )
 
     def _PSO_update(self, iteration: int, eval_only: bool = False):

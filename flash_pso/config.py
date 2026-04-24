@@ -104,12 +104,12 @@ def get_autotune_configs():
     """1-D (vanilla / Asian) payoff kernel autotune search space."""
     configs = []
 
-    particle_blocks = [1, 4, 8, 16]
-    dim_blocks      = [1, 4]
+    particle_blocks = [1, 4, 8, 16, 32]
+    dim_blocks      = [1, 4, 8]
     warps           = [4, 8, 16]
     stages          = [1, 2, 3, 4]
     loop_unroll_l   = [1, 2, 4]
-    loop_stages_l   = [1, 2]
+    loop_stages_l   = [1]
     warp_spec_l     = [False]
     flatten_l       = [True]
 

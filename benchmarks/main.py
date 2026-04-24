@@ -34,10 +34,36 @@ def run_core_bench():
     suite.add(Benchmark("FlashPSO Std", Method.FLASH_PSO, problem, base_compute, base_swarm, runs=50))
     suite.add(Benchmark("FlashPSO Anti", Method.FLASH_PSO, problem, anti_comp, base_swarm, runs=50))
     suite.add(Benchmark("FlashPSO Sobol", Method.FLASH_PSO, problem, sobol_comp, base_swarm, runs=50))
-
     suite.add(Benchmark("Li & Chen PSO (Std)", Method.OPENCL_PSO, problem, base_compute, base_swarm, runs=20))
     suite.add(Benchmark("Li & Chen LSMC", Method.OPENCL_LSMC, problem, base_compute, base_swarm, runs=20))
-    suite.add(Benchmark("Native Binomial", Method.NATIVE_BINOMIAL, problem, base_compute, base_swarm, runs=1))
+
+    suite.run_all()
+    suite.report()
+
+def run_compute_frac_sweep():
+    problem, base_compute, base_swarm = _get_base_configs()
+    suite = BenchmarkSuite(title="Compute Fraction Sweep (Operational Intensity Analysis)")
+
+    path_counts = [2**17, 2**20] 
+    block_sizes = [64, 128, 256]
+    fractions = [0.0, 0.25, 1.0]
+
+    for paths in path_counts:
+        p_cfg = OptionConfig(**{**problem.__dict__, "num_paths": paths})
+        
+        for bs in block_sizes:
+            for frac in fractions:
+                c_cfg = ComputeConfig(**{
+                    **base_compute.__dict__, 
+                    "compute_fraction": frac,
+                    "pso_paths_block_size": bs
+                })
+                
+                suite.add(Benchmark(
+                    f"FlashPSO Frac={frac} (N={paths}, BS={bs})", 
+                    Method.FLASH_PSO, p_cfg, c_cfg, base_swarm, 
+                    runs=20
+                ))
 
     suite.run_all()
     suite.report()
@@ -76,6 +102,7 @@ def run_particle_sweep():
             
             suite.add(Benchmark(f"FlashPSO Std (P={n}, BS={bs})",  Method.FLASH_PSO, problem, c_std, swarm, runs=20))
             suite.add(Benchmark(f"FlashPSO Anti (P={n}, BS={bs})", Method.FLASH_PSO, problem, c_anti, swarm, runs=20))
+            suite.add(Benchmark(f"FlashPSO Sobol (P={n}, BS={bs})", Method.FLASH_PSO, problem, ComputeConfig(**{**base_compute.__dict__, "rng_type": RNGType.SOBOL, "pso_paths_block_size": bs}), swarm, runs=20))
             
         suite.add(Benchmark(f"Li & Chen PSO (P={n})", Method.OPENCL_PSO, problem, base_compute, swarm, runs=5))
 
@@ -105,6 +132,28 @@ def run_paths_sweep():
         baseline_runs = 5 if paths <= 2**18 else 2
         suite.add(Benchmark(f"Li & Chen PSO (N={paths})", Method.OPENCL_PSO, problem_scaled, base_compute, base_swarm, runs=baseline_runs))
         suite.add(Benchmark(f"Li & Chen LSMC (N={paths})", Method.OPENCL_LSMC, problem_scaled, base_compute, base_swarm, runs=baseline_runs))
+        suite.add(Benchmark(f"Native Binomial (N={paths})", Method.NATIVE_BINOMIAL, problem_scaled, base_compute, base_swarm, runs=1))
+
+    suite.run_all()
+    suite.report()
+
+
+def run_fp16_paths_sweep():
+    problem, base_compute, base_swarm = _get_base_configs()
+    suite = BenchmarkSuite(title="FP16 vs FP32 Precomputed Paths Sweep (compute_fraction=0.0)")
+
+    for paths in [2**14, 2**16, 2**18, 2**20]:
+        problem_scaled = OptionConfig(**{**problem.__dict__, "num_paths": paths})
+
+        for bs in [64, 128, 256, 512]:
+            if bs > paths: continue
+
+            c_fp32 = ComputeConfig(**{**base_compute.__dict__, "pso_paths_block_size": bs, "use_fp16_paths": False})
+            c_fp16 = ComputeConfig(**{**base_compute.__dict__, "pso_paths_block_size": bs, "use_fp16_paths": True})
+
+            runs_count = 25 if paths <= 2**16 else 15
+            suite.add(Benchmark(f"FlashPSO FP32 Paths (N={paths}, BS={bs})", Method.FLASH_PSO, problem_scaled, c_fp32, base_swarm, runs=runs_count))
+            suite.add(Benchmark(f"FlashPSO FP16 Paths (N={paths}, BS={bs})", Method.FLASH_PSO, problem_scaled, c_fp16, base_swarm, runs=runs_count))
 
     suite.run_all()
     suite.report()
@@ -124,6 +173,7 @@ def run_timesteps_sweep():
             
             suite.add(Benchmark(f"FlashPSO Std (T={steps}, BS={bs})",  Method.FLASH_PSO, problem_scaled, c_std, base_swarm, runs=20))
             suite.add(Benchmark(f"FlashPSO Anti (T={steps}, BS={bs})", Method.FLASH_PSO, problem_scaled, c_anti, base_swarm, runs=20))
+            suite.add(Benchmark(f"FlashPSO Sobol (T={steps}, BS={bs})", Method.FLASH_PSO, problem_scaled, ComputeConfig(**{**base_compute.__dict__, "rng_type": RNGType.SOBOL, "pso_paths_block_size": bs}), base_swarm, runs=20))
             
         suite.add(Benchmark(f"Li & Chen PSO (T={steps})", Method.OPENCL_PSO, problem_scaled, base_compute, base_swarm, runs=5))
         suite.add(Benchmark(f"Li & Chen LSMC (T={steps})", Method.OPENCL_LSMC, problem_scaled, base_compute, base_swarm, runs=5))
@@ -152,8 +202,10 @@ def run_sync_iters_sweep():
         })
         
         suite.add(Benchmark(f"FlashPSO Std (sync={sync})",   Method.FLASH_PSO, problem, c_std,   base_swarm, runs=20))
+        suite.add(Benchmark(f"FlashPSO Anti (sync={sync})",  Method.FLASH_PSO, problem, ComputeConfig(**{**c_std.__dict__, "use_antithetic": True}), base_swarm, runs=20))
         suite.add(Benchmark(f"FlashPSO Sobol (sync={sync})", Method.FLASH_PSO, problem, c_sobol, base_swarm, runs=20))
 
+    suite.add(Benchmark(f"Li & Chen PSO (Baseline)", Method.OPENCL_PSO, problem, base_compute, base_swarm, runs=5))
     suite.add(Benchmark("Li & Chen LSMC (Baseline)", Method.OPENCL_LSMC, problem, base_compute, base_swarm, runs=5))
 
     suite.run_all()
@@ -191,6 +243,7 @@ def run_moneyness_sweep():
         
         suite.add(Benchmark(f"FlashPSO Std ({label}, K={strike})", Method.FLASH_PSO, p_cfg, base_compute, swarm, runs=20))
         suite.add(Benchmark(f"FlashPSO Anti ({label}, K={strike})", Method.FLASH_PSO, p_cfg, anti_comp, swarm, runs=20))
+        suite.add(Benchmark(f"FlashPSO Sobol ({label}, K={strike})", Method.FLASH_PSO, p_cfg, ComputeConfig(**{**base_compute.__dict__, "rng_type": RNGType.SOBOL}), swarm, runs=20))
         
         suite.add(Benchmark(f"Li & Chen PSO ({label})", Method.OPENCL_PSO, p_cfg, base_compute, swarm, runs=5))
         suite.add(Benchmark(f"Li & Chen LSMC ({label})", Method.OPENCL_LSMC, p_cfg, base_compute, swarm, runs=5))
@@ -198,6 +251,15 @@ def run_moneyness_sweep():
     suite.run_all()
     suite.report()
 
+def run_cpu_comparison():
+    problem, base_compute, swarm = _get_base_configs()
+    suite = BenchmarkSuite(title="CPU vs GPU FlashPSO Comparison")
+
+    suite.add(Benchmark("FlashPSO GPU", Method.FLASH_PSO, problem, base_compute, swarm, runs=20))
+    suite.add(Benchmark("FlashPSO CPU", Method.CPU_FLASH_PSO, problem, base_compute, swarm, runs=20))
+
+    suite.run_all()
+    suite.report()
 
 def run_iso_work_sweep():
     problem, base_compute, _ = _get_base_configs()
@@ -236,10 +298,12 @@ def run_all_benchmarks():
         ("Iso-Work Arithmetic Intensity Sweep",        run_iso_work_sweep),
         ("Particle Count Scaling",                     run_particle_sweep),
         ("Path Count Scaling",                         run_paths_sweep),
+        ("FP16 vs FP32 Path Precision Sweep",          run_fp16_paths_sweep),
         ("Timestep Count Scaling",                     run_timesteps_sweep),
         ("Early Convergence Analysis",                 run_early_convergence_sweep),
         ("Sync Iterations Convergence Sweep",          run_sync_iters_sweep),
-        ("Multi-Asset Basket Options Sweep",           run_basket_sweep),
+        ("CPU vs GPU FlashPSO Comparison",             run_cpu_comparison),
+        ("Compute Fraction Sweep",                     run_compute_frac_sweep),
     ]
 
     failures = []
@@ -257,8 +321,7 @@ def run_all_benchmarks():
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
             
-            # Disk cache flush only every 3rd sweep to save autotune compile time
-            if (i + 1) % 3 == 0:
+            if (i + 1) % 2 == 0:
                 triton_cache = os.path.expanduser("~/.triton/cache")
                 if os.path.exists(triton_cache):
                     shutil.rmtree(triton_cache, ignore_errors=True)

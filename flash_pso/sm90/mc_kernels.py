@@ -25,6 +25,7 @@ def mc_path_kernel(
     NUM_TIME_STEPS: tl.constexpr,
     USE_ANTITHETIC: tl.constexpr,
     USE_PRECOMPUTED_Z: tl.constexpr,
+    USE_FP16_PATHS: tl.constexpr,
 ):
     pid = tl.program_id(0)
     st_desc = tl.make_tensor_descriptor(
@@ -52,7 +53,8 @@ def mc_path_kernel(
             Z = tl.randn(seed, mc_offset_philox + path_offsets * NUM_TIME_STEPS + t)
 
         lnS = lnS + drift_l2 + vol_l2 * Z
-        tl.store_tensor_descriptor(st_desc, [t, pid * BLOCK_SIZE], tl.expand_dims(lnS, 0))
+        lnS_out = tl.expand_dims(lnS, 0)
+        tl.store_tensor_descriptor(st_desc, [t, pid * BLOCK_SIZE], lnS_out.to(tl.float16) if USE_FP16_PATHS else lnS_out)
 
 
 # ── Basket collapsed precompute (ExerciseStyle.SCALAR, TMA store) ────────────
@@ -64,6 +66,7 @@ def mc_basket_collapse_kernel(
     BLOCK_SIZE: tl.constexpr, NUM_TIME_STEPS: tl.constexpr, 
     NUM_ASSETS: tl.constexpr, TOTAL_NUM_PATHS: tl.constexpr,
     USE_ANTITHETIC: tl.constexpr, USE_FP16: tl.constexpr, USE_PRECOMPUTED_Z: tl.constexpr,
+    USE_FP16_PATHS: tl.constexpr,
 ):
     pid = tl.program_id(0)
     assets_offs = tl.arange(0, NUM_ASSETS)
@@ -144,8 +147,9 @@ def mc_basket_collapse_kernel(
         current_lnS = current_lnS + drift_exp + vol_exp * corr_Z
         S_matrix = tl.exp2(current_lnS)
         basket_S = tl.sum(S_matrix * weights_exp, axis=0)
+        basket_lnS_out = tl.expand_dims(tl.log2(basket_S), 0)
         tl.store_tensor_descriptor(st_desc, [step_idx, pid * BLOCK_SIZE],
-                                   tl.expand_dims(tl.log2(basket_S), 0))
+                                   basket_lnS_out.to(tl.float16) if USE_FP16_PATHS else basket_lnS_out)
 
 
 # ── Basket per-asset precompute (ExerciseStyle.PER_ASSET, TMA store) ─────────
@@ -157,6 +161,7 @@ def mc_basket_path_kernel(
     BLOCK_SIZE: tl.constexpr, NUM_TIME_STEPS: tl.constexpr, NUM_ASSETS: tl.constexpr,
     TOTAL_NUM_PATHS: tl.constexpr, USE_ANTITHETIC: tl.constexpr,
     USE_FP16: tl.constexpr, USE_PRECOMPUTED_Z: tl.constexpr,
+    USE_FP16_PATHS: tl.constexpr,
 ):
     pid = tl.program_id(0)
     assets_offs = tl.arange(0, NUM_ASSETS)
@@ -233,4 +238,4 @@ def mc_basket_path_kernel(
                 corr_Z += L_col[:, None] * Z_j[None, :]
 
         current_lnS = current_lnS + drift_exp + vol_exp * corr_Z
-        tl.store_tensor_descriptor(st_perasset_desc, [step_idx * NUM_ASSETS, pid * BLOCK_SIZE], current_lnS)
+        tl.store_tensor_descriptor(st_perasset_desc, [step_idx * NUM_ASSETS, pid * BLOCK_SIZE], current_lnS.to(tl.float16) if USE_FP16_PATHS else current_lnS)

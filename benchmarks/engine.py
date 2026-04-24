@@ -81,7 +81,7 @@ class Benchmark:
     def warmup(self):
         if self.method in (Method.FLASH_PSO, Method.FLASH_PSO_CPU):
             wrapper = WRAPPER_REGISTRY[self.method]
-            for _ in range(5):
+            for _ in range(10):
                 wrapper(self.problem, self.compute, self.swarm, seed=999)
             if torch.cuda.is_available():
                 torch.cuda.synchronize()

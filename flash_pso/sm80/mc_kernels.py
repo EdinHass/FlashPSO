@@ -25,6 +25,7 @@ def mc_path_kernel(
     NUM_TIME_STEPS: tl.constexpr,
     USE_ANTITHETIC: tl.constexpr,
     USE_PRECOMPUTED_Z: tl.constexpr,
+    USE_FP16_PATHS: tl.constexpr,
 ):
     pid = tl.program_id(0)
     path_idx = (pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)).to(tl.int64)
@@ -60,6 +61,7 @@ def mc_basket_collapse_kernel(
     NUM_ASSETS: tl.constexpr, TOTAL_NUM_PATHS: tl.constexpr,
     USE_ANTITHETIC: tl.constexpr, USE_FP16: tl.constexpr,
     USE_PRECOMPUTED_Z: tl.constexpr,
+    USE_FP16_PATHS: tl.constexpr,
 ):
     pid = tl.program_id(0)
     path_offs = (pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)).to(tl.int64)
@@ -142,6 +144,7 @@ def mc_basket_path_kernel(
     NUM_ASSETS: tl.constexpr, TOTAL_NUM_PATHS: tl.constexpr,
     USE_ANTITHETIC: tl.constexpr, USE_FP16: tl.constexpr,
     USE_PRECOMPUTED_Z: tl.constexpr,
+    USE_FP16_PATHS: tl.constexpr,
 ):
     pid = tl.program_id(0)
     path_offs = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
