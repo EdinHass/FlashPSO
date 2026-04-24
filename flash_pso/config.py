@@ -82,6 +82,7 @@ class ComputeConfig:
     use_fixed_random: bool = False
     use_antithetic: bool = False
     use_fp16_cholesky: bool = False
+    use_fp16_paths: bool = False
     rng_type: RNGType = RNGType.PHILOX
     randomize_paths: bool = False
     debug: bool = False
@@ -103,21 +104,25 @@ def get_autotune_configs():
     """1-D (vanilla / Asian) payoff kernel autotune search space."""
     configs = []
 
-    particle_blocks = [1, 4, 8]
+    particle_blocks = [1, 4, 8, 16]
     dim_blocks      = [1, 4]
     warps           = [4, 8, 16]
-    stages          = [1, 2]
-    loop_unroll_l   = [1, 2]
+    stages          = [1, 2, 3, 4]
+    loop_unroll_l   = [1, 2, 4]
     loop_stages_l   = [1, 2]
-    warp_spec_l     = [False, True]
+    warp_spec_l     = [False]
     flatten_l       = [True]
 
     for pt, d, w, s, ls, lu, ws, fl in itertools.product(
         particle_blocks, dim_blocks, warps, stages,
         loop_stages_l, loop_unroll_l, warp_spec_l, flatten_l,
     ):
+        if pt * d > 64:
+            continue
+
         if ws and w < 4:
             continue
+
         configs.append(triton.Config(
             {
                 "BLOCK_SIZE_PARTICLES": pt,
@@ -142,12 +147,12 @@ def get_basket_autotune_configs():
     """
     configs = []
 
-    particle_blocks = [1]
-    dim_blocks      = [1]
-    warps           = [8]
-    stages          = [1]
-    loop_unroll_l   = [8]
-    loop_stages_l   = [1]
+    particle_blocks = [1, 4]            # Kept small due to exponential covariance math
+    dim_blocks      = [1, 2]
+    warps           = [4, 8, 16]
+    stages          = [1, 2]            # Baskets chew through shared memory; cap at 2
+    loop_unroll_l   = [1, 4, 8]
+    loop_stages_l   = [1, 2]
     warp_spec_l     = [False]
     flatten_l       = [True]
 
@@ -155,8 +160,12 @@ def get_basket_autotune_configs():
         particle_blocks, dim_blocks, warps, stages,
         loop_stages_l, loop_unroll_l, warp_spec_l, flatten_l,
     ):
+        if pt * d > 8:
+            continue
+            
         if ws and w < 4:
             continue
+            
         configs.append(triton.Config(
             {
                 "BLOCK_SIZE_PARTICLES": pt,

@@ -1,6 +1,7 @@
 import time
 import os
 import csv
+import json
 from datetime import datetime
 import numpy as np
 import torch
@@ -10,10 +11,24 @@ from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 
 from flash_pso.config import OptionConfig, BasketOptionConfig, ComputeConfig, SwarmConfig
-from flash_pso.enums import OptionStyle, OptionType
+from flash_pso.enums import OptionStyle, OptionType, ExerciseStyle
 from .models import Method, BenchmarkResult
 from .wrappers import WRAPPER_REGISTRY, _quantlib_basket_lsmc_price, _quantlib_asian_price, _quantlib_american_price
 
+# Safely import the kernels by matching the SM architecture logic from the main API
+try:
+    if torch.cuda.is_available():
+        _cc_major, _ = torch.cuda.get_device_capability()
+        if _cc_major >= 9:
+            from flash_pso.sm90.payoff_kernels import mc_payoff_kernel, mc_asian_payoff_kernel, mc_basket_payoff_kernel
+        else:
+            from flash_pso.sm80.payoff_kernels import mc_payoff_kernel, mc_asian_payoff_kernel, mc_basket_payoff_kernel
+    else:
+        raise ImportError("CUDA not available")
+except ImportError:
+    mc_payoff_kernel = None
+    mc_asian_payoff_kernel = None
+    mc_basket_payoff_kernel = None
 
 class ReferenceCache:
     _cache = {}
@@ -71,6 +86,37 @@ class Benchmark:
             if torch.cuda.is_available():
                 torch.cuda.synchronize()
 
+    def _export_triton_config(self):
+        """Extracts the winning Triton configs and appends them to a JSON log."""
+        compute_kernel = None
+        
+        if isinstance(self.problem, BasketOptionConfig):
+            compute_kernel = mc_basket_payoff_kernel
+        elif self.problem.option_style == OptionStyle.ASIAN:
+            compute_kernel = mc_asian_payoff_kernel
+        else:
+            compute_kernel = mc_payoff_kernel
+
+        c_cfg = getattr(compute_kernel, 'best_config', None)
+
+        run_data = {
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "benchmark_name": self.name,
+            "method": str(self.method),
+            "compute_kernel": {
+                "kwargs": c_cfg.kwargs if c_cfg else "No Autotune or Not Found",
+                "num_warps": c_cfg.num_warps if c_cfg else None,
+                "num_stages": c_cfg.num_stages if c_cfg else None,
+            },
+        }
+
+        os.makedirs("./benchmarks/results", exist_ok=True)
+        try:
+            with open("./benchmarks/results/triton_configs.json", "a") as f:
+                f.write(json.dumps(run_data) + "\n")
+        except Exception as e:
+            print(f"Failed to write config for {self.name}: {e}")
+
     def run(self, progress: Progress, task_id) -> BenchmarkResult:
         prices = np.zeros(self.runs, dtype=np.float32)
         init_times, exec_times, iters_ran, wall_times = [], [], [], []
@@ -80,6 +126,9 @@ class Benchmark:
         is_gpu = (self.method in (Method.FLASH_PSO, Method.FLASH_PSO_CPU) and torch.cuda.is_available())
 
         self.warmup()  # Ensure warmup before timing
+
+        if self.method in (Method.FLASH_PSO, Method.FLASH_PSO_CPU):
+            self._export_triton_config()
 
         for i in range(self.runs):
             if is_gpu:
@@ -136,10 +185,6 @@ class BenchmarkSuite:
     def run_all(self):
         console = Console()
         console.print(f"\n[bold cyan]Starting Suite: {self.title}[/bold cyan]")
-        
-        # console.print("[dim]Warming up allocators and JIT compilers...[/dim]")
-        # for b in self.benchmarks:
-        #    b.warmup()
 
         with Progress(
             SpinnerColumn(),

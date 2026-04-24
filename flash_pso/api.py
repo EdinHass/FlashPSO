@@ -101,7 +101,7 @@ class FlashPSO:
             if precomputed_St is not None:
                 self.St = precomputed_St.to("cuda")
             else:
-                self.St = torch.empty((self.opt.num_time_steps, self._num_bw_paths), device="cuda", dtype=torch.float32).t()
+                self.St = torch.empty((self.opt.num_time_steps, self._num_bw_paths), device="cuda", dtype=torch.float16 if self.comp.use_fp16_paths else torch.float32).t()
                 self._precompute_mc_paths()
         else:
             self.St = torch.empty((0,), device="cuda")
@@ -147,6 +147,7 @@ class FlashPSO:
         self._reduce_pbest()
 
         for iteration in range(0, self.comp.max_iterations, self.comp.sync_iters):
+
             for i in range(self.comp.sync_iters):
                 self._PSO_update(iteration=iteration + i, eval_only=False)
                 self._reduce_pbest()
