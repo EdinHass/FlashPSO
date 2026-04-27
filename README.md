@@ -1,36 +1,34 @@
 # FlashPSO
 
-GPU-accelerated American option pricing via Particle Swarm Optimization, implemented in [Triton](https://github.com/openai/triton). Targets NVIDIA Ampere (A100) and Hopper (H100) hardware.
+**GPU-Accelerated Particle Swarm Optimization for Monte Carlo American Option Pricing.** Implemented in [Triton](https://github.com/openai/triton); targets NVIDIA Ampere (A100) and Hopper (H100).
+
+Princeton CS Independent Work · Spring 2026 · Edin Hasanovic, advised by Tri Dao.
 
 ## Overview
 
-FlashPSO prices American options by optimising an exercise boundary entirely on the GPU. The key design decision is **on-the-fly path generation**: rather than writing Monte Carlo paths to HBM and reading them back each iteration, the payoff kernel regenerates GBM paths in registers using a seeded counter-based RNG (Philox). This shifts the kernel from bandwidth-bound to compute-bound, which scales well at the large path and timestep counts required for accurate American option pricing.
+FlashPSO prices American options by searching for the optimal early-exercise boundary directly on the GPU. The exercise boundary lives in a $T$-dimensional space (one value per timestep); a swarm of $P$ particles iteratively updates candidate boundaries, scoring each by the average discounted payoff over $N$ Monte Carlo paths.
 
-Each PSO iteration fuses three operations into a single kernel dispatch:
+Prior GPU-PSO implementations parallelise only across the particle dimension. Because $P$ is typically small relative to modern GPU parallelism, this leaves most SMs idle while a handful of threads grind through deep sequential loops over the $N \times T$ path space. FlashPSO resolves this by **tiling across both particles and paths simultaneously**: the payoff kernel processes a block of particles against a block of paths, partial payoffs are reduced on-device, and a separate two-stage reduction extracts pbest/gbest. Initialisation, path generation, and reduction all run on the GPU — only the global best fitness scalar is copied back to the host (and only every `sync_iters` iterations, for convergence checking).
 
-1. On-the-fly GBM Monte Carlo path generation (Philox or antithetic Philox)
-2. Early-exercise payoff evaluation against the current boundary candidates
-3. Partial payoff accumulation across path blocks
-
-PSO velocity/position updates and pbest/gbest reductions run in separate lightweight kernels, all on-GPU with no CPU synchronisation during the optimisation loop.
+A heuristic flat-boundary initialisation (bounded by the perpetual-American closed form) and native variance reduction (antithetic variates, Sobol sequences with Brownian-bridge construction) further reduce the path count required to hit a target accuracy.
 
 ## Performance
 
-Benchmarked against an OpenCL vec4-fused PSO baseline and Longstaff-Schwartz Monte Carlo (LSMC) on an NVIDIA A100.
+Benchmarked against the Li & Chen OpenCL PSO baseline and Longstaff-Schwartz Monte Carlo (LSMC) on an NVIDIA A100 (80GB).
 
-**Setup:** American Put, S₀ = K = 100, r = 5%, σ = 30%, T = 2yr · 131,072 paths · 128 timesteps · 128 particles · 150 iterations
+**Setup:** American Put, S₀ = K = 100, r = 5%, σ = 20%, T = 2yr · 131,072 paths · 128 timesteps · 128 particles · 150 iterations. Binomial-tree ground truth: **7.7232**.
 
-| Method | Mean Price | RMSE | Iter Time | Wall Time | vs OpenCL PSO |
-|--------|-----------|------|-----------|-----------|---------------|
-| FlashPSO (Sobol QMC) | 12.8429 | **0.0121** | 1.24 ms | 0.26 s | **184× faster** |
-| FlashPSO (Antithetic) | 12.8475 | **0.0200** | 1.19 ms | 0.18 s | **192× faster** |
-| FlashPSO (Standard) | 12.8375 | 0.0316 | 1.20 ms | 0.18 s | **190× faster** |
-| OpenCL PSO (Std) | 12.8184 | 0.0394 | 228 ms | 36.5 s | — |
-| OpenCL LSMC | 12.7900 | 0.0599 | 884 ms | 2.7 s | — |
+| Method | Mean Price | Std Dev | RMSE | Wall Time | Speedup |
+|--------|-----------|---------|------|-----------|---------|
+| Li & Chen PSO        | 7.6755 | 0.0147 | 0.0494 | 36.21 s | 1.0× |
+| LSMC Baseline        | 7.6776 | 0.0117 | 0.0467 | 2.58 s  | 14.0× |
+| **FlashPSO Sobol**   | 7.7229 | **0.0065** | **0.0064** | 0.24 s | **150.8×** |
+| **FlashPSO Anti**    | 7.7196 | 0.0120 | 0.0123 | 0.19 s | **190.5×** |
+| **FlashPSO Std**     | 7.7136 | 0.0176 | 0.0196 | **0.19 s** | **190.5×** |
 
-FlashPSO (Standard) is **190× faster** than the OpenCL PSO baseline with **20% lower RMSE**. Enabling antithetic sampling or Sobol quasi-random sequences improves accuracy further with no meaningful throughput penalty — Sobol achieves **5× lower RMSE** than LSMC at a fraction of the runtime.
+FlashPSO Standard achieves a **190× wall-time speedup** over the Li & Chen GPU-PSO baseline with **2.5× lower RMSE**. Sobol drives RMSE down a further 3× (to 0.0064) with no meaningful throughput penalty, beating both the LSMC baseline and the prior PSO implementation by orders of magnitude on accuracy.
 
-Sobol init time is higher (~70 ms) due to host-side sequence generation; subsequent runs reuse cached paths.
+**Time-to-accuracy.** Compared at matched RMSE, the gap widens further: the baseline needs ~48 s and 200 iterations to reach RMSE ≈ 0.049, while FlashPSO Standard reaches comparable accuracy in 25 iterations and ~0.035 s — roughly a **1360× speedup to target precision**.
 
 ## Installation
 
@@ -51,7 +49,7 @@ opt = OptionConfig(
     initial_stock_price=100.0,
     strike_price=100.0,
     risk_free_rate=0.05,
-    volatility=0.30,
+    volatility=0.20,
     time_to_maturity=2.0,
     num_paths=131072,
     num_time_steps=128,
@@ -109,6 +107,10 @@ comp_sobol = ComputeConfig(seed=42, max_iterations=150, sync_iters=5, rng_type=R
 | `use_antithetic` | False | Antithetic path pairs for variance reduction |
 | `rng_type` | `PHILOX` | `PHILOX` or `SOBOL` |
 | `use_fixed_random` | False | Reuse r1/r2 PSO coefficients across iterations |
+| `use_fp16_paths` | False | Store precomputed paths in FP16 (basket / `compute_fraction < 1`). Halves HBM traffic but adds cast cost; only wins when the payoff kernel is HBM-bound. |
+| `use_fp16_cholesky` | False | Store the basket Cholesky factor in FP16. |
+| `pso_paths_block_size` | 64 | Path-block tile size (power of two, ≥ 4). |
+| `randomize_paths` | False | Shuffle path ordering each iteration. |
 
 ### `SwarmConfig`
 
@@ -236,4 +238,19 @@ pip install -e ".[bench]"
 - `compute_fraction=1.0` (default) generates all paths on-the-fly — compute-bound and optimal at large path/step counts. `compute_fraction=0.0` precomputes all paths to HBM, which is useful with Sobol sequences (which require precomputation) or for profiling the bandwidth-bound regime.
 - `use_fixed_random=True` reuses the same r1/r2 PSO coefficients each iteration, matching the convergence behaviour of the OpenCL baseline. The default (`False`) resamples each iteration, which is statistically correct but may converge more slowly.
 - Hardware dispatch is automatic: SM90 (TMA-optimised) kernels are used on Hopper-class GPUs; SM80 kernels are used on Ampere.
-- All block sizes must be powers of two. Path count must be divisible by `pso_paths_block_size` (default 256).
+- All block sizes must be powers of two. Path count must be divisible by `pso_paths_block_size` (default 64).
+
+## Known Issues
+
+- **Last-timestep boundary is unreliable.** The terminal exercise decision is handled as a special case (exercise iff in-the-money), so the optimiser receives no gradient signal on the final boundary value and it can drift to arbitrary values. This does **not** affect price correctness — the special-case rule is what gets evaluated — but the gbest vector at index `T-1` should not be interpreted as a learned boundary.
+- **Dead-dimension spikes in the gbest vector.** Boundary values at timesteps where no path is near exercise receive no payoff signal and can show large spikes / non-monotonicity. This is a property of the PSO objective surface (zero gradient on insensitive dims), not a bug; price correctness is unaffected because those dims don't change any exercise decisions.
+
+## TODO / Roadmap
+
+- **Persistent kernels.** Replace per-iteration kernel launches with a single persistent grid that loops internally — eliminates launch overhead and lets pbest/gbest stay in shared memory across iterations.
+- **Curved boundary initialisation.** Initial particles currently start from a flat boundary; seeding with a roughly-correct curved shape (e.g. a parametric American-put boundary approximation) should reduce iteration count to convergence.
+- **Reduce overfitting.** In-sample bias on the optimised boundary remains material at small path counts. Worth exploring: out-of-sample validation during PSO, regularisation on boundary roughness, ensembled re-evaluation on independent path sets, or boundary smoothing/projection (monotone, in `[0, K]`) to prune dead dimensions.
+- **CUTLASS port.** Triton hits a ceiling on register pressure and async-pipeline control for the fused payoff kernel; a CUTLASS implementation would expose explicit warp-specialisation, TMA, and `wgmma` for the basket Cholesky path.
+- **FP16 path quantisation viability.** Initial benchmarks show FP16 paths and FP16-on-the-fly compute are slower than FP32 on A100 across all tested path counts (the kernel isn't HBM-bound thanks to L2 reuse across particles). Worth re-checking on H100 / B200 where higher compute throughput shifts the bottleneck back to bandwidth.
+- **Optimise basket options.** Basket kernels are still well below peak: covariance math dominates, autotune space is more constrained (`pt * d ≤ 8`), and Cholesky-factor reuse across particles isn't fully exploited.
+- **Other exotic options.** Lookback, barrier (knock-in/knock-out), and Bermudan variants would round out the exotic suite. The PSO formulation is general — main work is per-style payoff kernels and any required path-state augmentation (running min/max).

@@ -13,7 +13,7 @@ import triton
 import triton.language as tl
 
 
-# ── Vanilla / Asian 1D path precompute (TMA store) ──────────────────────────
+# Vanilla / Asian 1D path precompute (TMA store)
 
 @triton.jit
 def mc_path_kernel(
@@ -57,7 +57,7 @@ def mc_path_kernel(
         tl.store_tensor_descriptor(st_desc, [t, pid * BLOCK_SIZE], lnS_out.to(tl.float16) if USE_FP16_PATHS else lnS_out)
 
 
-# ── Basket collapsed precompute (ExerciseStyle.SCALAR, TMA store) ────────────
+# Basket collapsed precompute (ExerciseStyle.SCALAR, TMA store)
 
 @triton.jit
 def mc_basket_collapse_kernel(
@@ -152,7 +152,7 @@ def mc_basket_collapse_kernel(
                                    basket_lnS_out.to(tl.float16) if USE_FP16_PATHS else basket_lnS_out)
 
 
-# ── Basket per-asset precompute (ExerciseStyle.PER_ASSET, TMA store) ─────────
+# Basket per-asset precompute (ExerciseStyle.PER_ASSET, TMA store)
 
 @triton.jit
 def mc_basket_path_kernel(

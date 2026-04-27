@@ -44,9 +44,9 @@ def run_compute_frac_sweep():
     problem, base_compute, base_swarm = _get_base_configs()
     suite = BenchmarkSuite(title="Compute Fraction Sweep (Operational Intensity Analysis)")
 
-    path_counts = [2**17, 2**20] 
+    path_counts = [2**18] 
     block_sizes = [64, 128, 256]
-    fractions = [0.0, 0.25, 1.0]
+    fractions = [0.25]
 
     for paths in path_counts:
         p_cfg = OptionConfig(**{**problem.__dict__, "num_paths": paths})
@@ -94,9 +94,9 @@ def run_particle_sweep():
     suite = BenchmarkSuite(title="Particle Count × Path Block Size Sweep")
     anti_comp = ComputeConfig(**{**base_compute.__dict__, "use_antithetic": True})
 
-    for n in [32, 64, 128, 256]:
+    for n in [64, 128, 256, 512, 1024]:
         swarm = SwarmConfig(num_particles=n)
-        for bs in [64, 128, 256, 512]:
+        for bs in [64, 128, 256]:
             c_std = ComputeConfig(**{**base_compute.__dict__, "pso_paths_block_size": bs})
             c_anti = ComputeConfig(**{**anti_comp.__dict__, "pso_paths_block_size": bs})
             
@@ -128,6 +128,7 @@ def run_paths_sweep():
             runs_count = 25 if paths <= 2**16 else 15
             suite.add(Benchmark(f"FlashPSO Std (N={paths}, BS={bs})",  Method.FLASH_PSO, problem_scaled, c_std, base_swarm, runs=runs_count))
             suite.add(Benchmark(f"FlashPSO Anti (N={paths}, BS={bs})", Method.FLASH_PSO, problem_scaled, c_anti, base_swarm, runs=runs_count))
+            suite.add(Benchmark(f"FlashPSO Sobol (N={paths}, BS={bs})", Method.FLASH_PSO, problem_scaled, ComputeConfig(**{**base_compute.__dict__, "rng_type": RNGType.SOBOL, "pso_paths_block_size": bs}), base_swarm, runs=runs_count))
             
         baseline_runs = 5 if paths <= 2**18 else 2
         suite.add(Benchmark(f"Li & Chen PSO (N={paths})", Method.OPENCL_PSO, problem_scaled, base_compute, base_swarm, runs=baseline_runs))
@@ -141,11 +142,12 @@ def run_paths_sweep():
 def run_fp16_paths_sweep():
     problem, base_compute, base_swarm = _get_base_configs()
     suite = BenchmarkSuite(title="FP16 vs FP32 Precomputed Paths Sweep (compute_fraction=0.0)")
+    base_swarm = SwarmConfig(num_particles=128)
 
-    for paths in [2**14, 2**16, 2**18, 2**20]:
-        problem_scaled = OptionConfig(**{**problem.__dict__, "num_paths": paths})
+    for paths in [2**20, 2**22, 2**24]:
+        problem_scaled = OptionConfig(**{**problem.__dict__, "num_paths": paths, "num_time_steps": 256})
 
-        for bs in [64, 128, 256, 512]:
+        for bs in [64, 128]:
             if bs > paths: continue
 
             c_fp32 = ComputeConfig(**{**base_compute.__dict__, "pso_paths_block_size": bs, "use_fp16_paths": False})
@@ -256,7 +258,7 @@ def run_cpu_comparison():
     suite = BenchmarkSuite(title="CPU vs GPU FlashPSO Comparison")
 
     suite.add(Benchmark("FlashPSO GPU", Method.FLASH_PSO, problem, base_compute, swarm, runs=20))
-    suite.add(Benchmark("FlashPSO CPU", Method.CPU_FLASH_PSO, problem, base_compute, swarm, runs=20))
+    suite.add(Benchmark("FlashPSO CPU", Method.FLASH_PSO_CPU, problem, base_compute, swarm, runs=20))
 
     suite.run_all()
     suite.report()
@@ -296,13 +298,13 @@ def run_all_benchmarks():
         ("Core Vanilla Performance & Baselines",       run_core_bench),
         ("Moneyness Sweep (ITM, ATM, OTM)",            run_moneyness_sweep),
         ("Iso-Work Arithmetic Intensity Sweep",        run_iso_work_sweep),
-        ("Particle Count Scaling",                     run_particle_sweep),
         ("Path Count Scaling",                         run_paths_sweep),
         ("FP16 vs FP32 Path Precision Sweep",          run_fp16_paths_sweep),
         ("Timestep Count Scaling",                     run_timesteps_sweep),
         ("Early Convergence Analysis",                 run_early_convergence_sweep),
         ("Sync Iterations Convergence Sweep",          run_sync_iters_sweep),
         ("CPU vs GPU FlashPSO Comparison",             run_cpu_comparison),
+        ("Particle Count Scaling",                     run_particle_sweep),
         ("Compute Fraction Sweep",                     run_compute_frac_sweep),
     ]
 

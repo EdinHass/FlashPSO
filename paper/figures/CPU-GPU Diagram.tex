@@ -1,0 +1,125 @@
+\documentclass[tikz,border=8pt]{standalone}
+
+\usepackage{amsmath}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, calc, fit, backgrounds}
+
+\begin{document}
+\begin{tikzpicture}[
+    font=\small,
+    >=Stealth,
+    line width=0.9pt,
+    lane/.style={
+        draw,
+        rounded corners=4pt,
+        minimum height=10.5cm,
+        fill=gray!6
+    },
+    lanehdr/.style={
+        draw,
+        rounded corners=2pt,
+        text=white,
+        font=\bfseries\large,
+        inner xsep=6pt,
+        inner ysep=3pt
+    },
+    cpuhdr/.style={lanehdr, fill=blue!55},
+    gpuhdr/.style={lanehdr, fill=green!45!black},
+    block/.style={
+        draw,
+        rounded corners=3pt,
+        fill=white,
+        minimum width=4.2cm,
+        minimum height=0.95cm,
+        align=center
+    },
+    gpuBlock/.style={
+        draw,
+        rounded corners=3pt,
+        fill=green!7,
+        minimum width=5.2cm,
+        minimum height=0.95cm,
+        align=center
+    },
+    mem/.style={
+        draw,
+        rounded corners=8pt,
+        fill=green!35,
+        minimum width=1.5cm,
+        minimum height=7.2cm,
+        align=center,
+        text=white,
+        font=\bfseries\large
+    },
+    syncbox/.style={
+        draw,
+        dashed,
+        rounded corners=6pt,
+        draw=green!50!black,
+        line width=1.0pt,
+        inner sep=8pt
+    },
+    note/.style={font=\footnotesize, align=center},
+    arr/.style={->, line width=1.0pt},
+    backarr/.style={->, line width=1.0pt}
+]
+
+% LANE BACKGROUNDS
+\node[lane, minimum width=4.4cm, minimum height=13.7cm, anchor=north west] (cpuLane) at (0,10.8) {};
+\node[lane, minimum width=10.4cm, minimum height=11.4cm, anchor=north west] (gpuLane) at (4.6,10.8) {};
+
+\node[cpuhdr, anchor=north west] at (0.15,10.65) {CPU};
+\node[gpuhdr, anchor=north west] at (4.80,10.65) {GPU};
+
+% CPU SIDE
+\node[block, anchor=north] (api) at (2.2,8.8)
+    {\textbf{API call}\\create pricer \& call kernels};
+
+\node[block, below=7.05cm of api] (check)
+    {\textbf{Check convergence}\\every \texttt{sync\_iters}};
+
+\node[block, below=1.6cm of check] (out)
+    {\textbf{Return result}\\price, $gbest$, diagnostics};
+
+
+% GPU MAIN BLOCKS
+\node[gpuBlock, anchor=north west] (mcinit) at (6.0,9.5)
+    {\textbf{Initialize Monte Carlo state}\\RNG offsets, Sobol state, generate Monte Carlo paths};
+
+\node[gpuBlock, below=0.45cm of mcinit] (pinit)
+    {\textbf{Initialize particles}\\positions, log-positions, velocities, $pbest$, random factors};
+
+\node[syncbox, fit=(mcinit)(pinit), label={[note]north:startup on GPU}] (startupBox) {};
+
+\node[gpuBlock, below=1.25cm of pinit] (update)
+    {\textbf{PSO update kernel}\\update positions and velocities}
+
+\node[gpuBlock, below=0.45cm of update] (payoff)
+    {\textbf{Monte Carlo payoff kernel}\\calculate payoff for each particle-path block};
+
+\node[gpuBlock, below=0.45cm of payoff] (reduce)
+    {\textbf{Reduction kernels}\\reduce to get local and global best};
+
+% CPU -> GPU arrows
+\draw[arr] (api.east) -- ++(0.8,0) |- (mcinit.west);
+\draw[arr] (api.east) -- ++(0.8,0) |- (pinit.west);
+
+% GPU internal arrows
+\draw[arr] (mcinit.south) -- (pinit.north);
+\draw[arr] (pinit.south) -- (update.north);
+\draw[arr] (update.south) -- (payoff.north);
+\draw[arr] (payoff.south) -- (reduce.north);
+
+
+% GPU -> CPU arrow
+\draw[backarr] (reduce.south) |- node[right, note, yshift=7pt, xshift=-125pt] {copy back global best only} (check.east);
+
+% CPU convergence path
+\draw[arr] (check.south) -- node[right, note] {if converged} (out.north);
+\draw[arr] (check.north) |- node[right, note, yshift=-120pt] {else}(update.west) ;
+
+
+
+\end{tikzpicture}
+\end{document}
+

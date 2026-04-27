@@ -19,8 +19,8 @@ class BenchmarkResult:
     std_dev: float
     std_error: float
     rmse: float
-    mean_iters: float           # <--- Added
+    mean_iters: float
     mean_init_time_ms: float
     mean_exec_time_ms: float
     mean_iter_time_ms: float
-    mean_wall_time_s: float     # <--- Changed to Mean Per-Run
+    mean_wall_time_s: float

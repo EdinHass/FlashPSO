@@ -13,8 +13,7 @@ import triton
 import triton.language as tl
 
 
-# ── Vanilla / Asian 1D path precompute ───────────────────────────────────────
-
+# Vanilla / Asian 1D path precompute
 @triton.jit
 def mc_path_kernel(
     St_ptr, Z_ptr,
@@ -51,8 +50,7 @@ def mc_path_kernel(
         tl.store(St_ptr + t * num_paths + path_idx, lnS, mask=mask)
 
 
-# ── Basket collapsed precompute (ExerciseStyle.SCALAR) ───────────────────────
-
+# Basket collapsed precompute (ExerciseStyle.SCALAR)
 @triton.jit
 def mc_basket_collapse_kernel(
     St_ptr, Z_ptr, log2_S0_ptr, drift_ptr, vol_ptr, weights_ptr, L_ptr,
@@ -133,7 +131,7 @@ def mc_basket_collapse_kernel(
         tl.store(St_ptr + step_idx * num_bw_paths + path_offs, tl.log2(basket_S))
 
 
-# ── Basket per-asset precompute (ExerciseStyle.PER_ASSET) ────────────────────
+# Basket per-asset precompute (ExerciseStyle.PER_ASSET)
 
 @triton.jit
 def mc_basket_path_kernel(
